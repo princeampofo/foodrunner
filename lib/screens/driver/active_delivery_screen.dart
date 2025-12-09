@@ -25,7 +25,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final LocationService _locationService = LocationService();
   late OrderModel _order;
-  // GoogleMapController? _mapController;
+  GoogleMapController? mapController;
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
 
@@ -163,7 +163,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
               myLocationEnabled: true,
               myLocationButtonEnabled: true,
               onMapCreated: (controller) {
-                _mapController = controller;
+                mapController = controller;
               },
             ),
           ),
