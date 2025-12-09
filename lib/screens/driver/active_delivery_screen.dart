@@ -2,10 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../models/order_model.dart';
-import '../../models/driver_model.dart';
-import '../../foodrunner/lib/services/firestore_service.dart';
-import '../../foodrunner/lib/services/location_service.dart';
+import '../../../../models/order_model.dart';
+import '../../../../models/driver_model.dart';
+import '../../services/firestore_service.dart';
+import '../../services/location_service.dart';
 
 class ActiveDeliveryScreen extends StatefulWidget {
   final OrderModel order;
@@ -25,7 +25,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final LocationService _locationService = LocationService();
   late OrderModel _order;
-  GoogleMapController? _mapController;
+  // GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
 
