@@ -114,21 +114,18 @@ class FirestoreService {
   }
 
   // Get restaurant orders
+  // Get restaurant orders (all orders for the restaurant)
   Stream<List<OrderModel>> getRestaurantOrders(String restaurantId) {
     return _firestore
         .collection('orders')
         .where('restaurantId', isEqualTo: restaurantId)
-        .where('status', whereIn: [
-      'pending',
-      'accepted',
-      'preparing',
-      'ready_for_pickup',
-      'driver_assigned',
-      'driver_at_restaurant',
-    ]).orderBy('createdAt', descending: true)
+        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => OrderModel.fromFirestore(doc)).toList());
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return OrderModel.fromFirestore(doc);
+      }).toList();
+    });
   }
 
   // Get driver orders

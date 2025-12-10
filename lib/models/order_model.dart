@@ -1,17 +1,20 @@
 // lib/models/order_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 enum OrderStatus {
   pending,
   accepted,
   preparing,
   ready_for_pickup,
+  finding_driver,         // NEW - when broadcasting to drivers
   driver_assigned,
   driver_at_restaurant,
   out_for_delivery,
   arriving,
   delivered,
   cancelled,
+  no_driver_available,    // NEW - when no drivers respond
 }
 
 class OrderItem {
@@ -178,5 +181,91 @@ class OrderModel {
       'estimatedPrepTime': estimatedPrepTime,
       'priority': priority,
     };
+  }
+
+  // Get user-friendly status message
+  String getStatusMessage() {
+    switch (status) {
+      case OrderStatus.pending:
+        return 'Waiting for acceptance';
+      case OrderStatus.accepted:
+        return 'Order accepted';
+      case OrderStatus.preparing:
+        return 'Preparing your order';
+      case OrderStatus.ready_for_pickup:
+        return 'Ready for pickup';
+      case OrderStatus.finding_driver:
+        return 'Finding a driver...';
+      case OrderStatus.no_driver_available:
+        return 'No drivers available - Retrying...';
+      case OrderStatus.driver_assigned:
+        return driverName != null 
+          ? 'Driver assigned: $driverName'
+          : 'Driver assigned';
+      case OrderStatus.driver_at_restaurant:
+        return 'Driver has arrived';
+      case OrderStatus.out_for_delivery:
+        return 'Out for delivery';
+      case OrderStatus.arriving:
+        return 'Driver arriving soon';
+      case OrderStatus.delivered:
+        return 'Delivered';
+      case OrderStatus.cancelled:
+        return 'Cancelled';
+    }
+  }
+  
+  // Get status color
+  Color getStatusColor() {
+    switch (status) {
+      case OrderStatus.pending:
+        return Colors.orange;
+      case OrderStatus.accepted:
+      case OrderStatus.preparing:
+        return Colors.blue;
+      case OrderStatus.ready_for_pickup:
+        return Colors.purple;
+      case OrderStatus.finding_driver:
+        return Colors.amber;
+      case OrderStatus.no_driver_available:
+        return Colors.red;
+      case OrderStatus.driver_assigned:
+      case OrderStatus.driver_at_restaurant:
+        return Colors.teal;
+      case OrderStatus.out_for_delivery:
+      case OrderStatus.arriving:
+        return Colors.green;
+      case OrderStatus.delivered:
+        return Colors.green[700]!;
+      case OrderStatus.cancelled:
+        return Colors.grey;
+    }
+  }
+  
+  // Get status icon
+  IconData getStatusIcon() {
+    switch (status) {
+      case OrderStatus.pending:
+        return Icons.access_time;
+      case OrderStatus.accepted:
+      case OrderStatus.preparing:
+        return Icons.restaurant;
+      case OrderStatus.ready_for_pickup:
+        return Icons.done_all;
+      case OrderStatus.finding_driver:
+        return Icons.search;
+      case OrderStatus.no_driver_available:
+        return Icons.warning;
+      case OrderStatus.driver_assigned:
+      case OrderStatus.driver_at_restaurant:
+        return Icons.person;
+      case OrderStatus.out_for_delivery:
+      case OrderStatus.arriving:
+        return Icons.delivery_dining;
+      case OrderStatus.delivered:
+        return Icons.check_circle;
+      case OrderStatus.cancelled:
+        return Icons.cancel;
+    }
   }
 }

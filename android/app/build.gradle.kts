@@ -8,6 +8,9 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+def MAPS_API_KEY = project.findProperty("MAPS_API_KEY") ?: ""
+def PLACES_API_KEY = project.findProperty("PLACES_API_KEY") ?: ""
+
 android {
     namespace = "com.example.foodrunner"
     compileSdk = flutter.compileSdkVersion

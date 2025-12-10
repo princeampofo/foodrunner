@@ -1,10 +1,12 @@
 // lib/services/location_service.dart
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LocationService {
   StreamSubscription<Position>? _locationSubscription;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   // Request location permission
   Future<bool> requestPermission() async {
@@ -23,17 +25,20 @@ class LocationService {
            permission == LocationPermission.whileInUse;
   }
 
-  // Get current location
+  // Get current location once
   Future<Position?> getCurrentLocation() async {
     bool hasPermission = await requestPermission();
     if (!hasPermission) return null;
     
     try {
-      return await Geolocator.getCurrentPosition(
+      Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
+      
+      debugPrint('📍 Current location: ${position.latitude}, ${position.longitude}');
+      return position;
     } catch (e) {
-      print('Error getting location: $e');
+      debugPrint('❌ Error getting location: $e');
       return null;
     }
   }
@@ -43,42 +48,60 @@ class LocationService {
     required String driverId,
     required bool hasActiveDelivery,
   }) {
+    debugPrint('🚗 Starting location tracking for driver: $driverId');
+    debugPrint('   Active delivery: $hasActiveDelivery');
+    
+    // Cancel any existing subscription
     _locationSubscription?.cancel();
     
+    // Start new location stream
     _locationSubscription = Geolocator.getPositionStream(
       locationSettings: LocationSettings(
         accuracy: hasActiveDelivery
-            ? LocationAccuracy.high
-            : LocationAccuracy.medium,
-        distanceFilter: hasActiveDelivery ? 10 : 50,
-        timeLimit: Duration(seconds: hasActiveDelivery ? 5 : 15),
+            ? LocationAccuracy.high      // More accurate during delivery
+            : LocationAccuracy.medium,   // Less battery drain when idle
+        distanceFilter: hasActiveDelivery ? 10 : 50,  // Update every 10m or 50m
       ),
-    ).listen((Position position) {
-      _updateDriverLocation(driverId, position);
-    });
+    ).listen(
+      (Position position) {
+        debugPrint('📍 Location update: ${position.latitude}, ${position.longitude}');
+        _updateDriverLocation(driverId, position);
+      },
+      onError: (error) {
+        debugPrint('❌ Location stream error: $error');
+      },
+    );
+    
+    debugPrint('✅ Location tracking started');
   }
 
   // Update driver location in Firestore
   Future<void> _updateDriverLocation(String driverId, Position position) async {
     try {
-      // Calculate geohash (simple version - you can use geoflutterfire_plus for better implementation)
+      // Calculate simple geohash
       String geohash = _calculateGeohash(position.latitude, position.longitude);
       
-      await FirebaseFirestore.instance.collection('drivers').doc(driverId).update({
+      await _firestore.collection('drivers').doc(driverId).update({
         'currentLocation': GeoPoint(position.latitude, position.longitude),
         'geohash': geohash,
         'heading': position.heading,
         'speed': position.speed,
+        'accuracy': position.accuracy,
         'lastUpdated': FieldValue.serverTimestamp(),
       });
+      
+      // Don't debugPrint every update to avoid spam
+      // debugPrint('✅ Location updated in Firestore');
     } catch (e) {
-      print('Error updating driver location: $e');
+      debugPrint('❌ Error updating driver location: $e');
     }
   }
 
   // Stop tracking
   void stopTracking() {
+    debugPrint('🛑 Stopping location tracking');
     _locationSubscription?.cancel();
+    _locationSubscription = null;
   }
 
   // Calculate distance between two points (Haversine formula)
@@ -93,7 +116,6 @@ class LocationService {
 
   // Simple geohash calculation (basic implementation)
   String _calculateGeohash(double lat, double lng, {int precision = 7}) {
-    // This is a simplified version. Use geoflutterfire_plus for production
     const String base32 = '0123456789bcdefghjkmnpqrstuvwxyz';
     List<bool> bits = [];
     double latMin = -90.0, latMax = 90.0;
@@ -133,5 +155,10 @@ class LocationService {
     }
     
     return hash;
+  }
+
+  // Check if location services are enabled
+  Future<bool> isLocationServiceEnabled() async {
+    return await Geolocator.isLocationServiceEnabled();
   }
 }

@@ -1,15 +1,18 @@
 // lib/screens/driver/driver_home_screen.dart
 import 'package:flutter/material.dart';
 // import 'package:provider/provider.dart';
-import '../../../../models/user_model.dart';
-import '../../../../models/driver_model.dart';
-import '../../../../models/order_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import '../../models/user_model.dart';
+import '../../models/driver_model.dart';
+import '../../models/order_model.dart';
 import '../../services/firestore_service.dart';
 import '../../services/location_service.dart';
-// import '../../services/auth_service.dart';
+// import '../../providers/auth_provider.dart';
 import 'active_delivery_screen.dart';
 import 'driver_earnings_screen.dart';
-import '../../../../screens/shared/profile_screen.dart';
+import 'order_request_modal.dart';
+import '../shared/profile_screen.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   final UserModel user;
@@ -23,8 +26,13 @@ class DriverHomeScreen extends StatefulWidget {
 class _DriverHomeScreenState extends State<DriverHomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final LocationService _locationService = LocationService();
+  
   bool _isOnline = false;
   DriverModel? _driverData;
+  
+  // Subscriptions
+  StreamSubscription? _orderRequestSubscription;
+  StreamSubscription<DriverModel>? _driverDataSubscription;
 
   @override
   void initState() {
@@ -32,14 +40,126 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     _loadDriverData();
   }
 
-  Future<void> _loadDriverData() async {
-    DriverModel? driver = await _firestoreService.getDriver(widget.user.id);
-    if (mounted) {
-      setState(() {
-        _driverData = driver;
-        _isOnline = driver?.isOnline ?? false;
-      });
+  @override
+  void dispose() {
+    debugPrint('🗑️ Disposing driver home screen');
+    _orderRequestSubscription?.cancel();
+    _driverDataSubscription?.cancel();
+    
+    // Stop location tracking if online
+    if (_isOnline) {
+      _locationService.stopTracking();
     }
+    
+    super.dispose();
+  }
+
+  Future<void> _loadDriverData() async {
+    try {
+      debugPrint('📊 Loading driver data for: ${widget.user.id}');
+      
+      DriverModel? driver = await _firestoreService.getDriver(widget.user.id);
+      
+      if (mounted) {
+        setState(() {
+          _driverData = driver;
+          _isOnline = driver?.isOnline ?? false;
+        });
+        
+        debugPrint('✅ Driver data loaded: ${driver?.name}');
+        debugPrint('   Online: $_isOnline');
+        debugPrint('   Available: ${driver?.isAvailable}');
+        
+        // Start listening for order requests if online
+        if (_isOnline) {
+          _listenForOrderRequests();
+        }
+        
+        // Listen to driver data changes
+        _listenToDriverData();
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading driver data: $e');
+    }
+  }
+
+  // Listen to real-time driver data updates
+  void _listenToDriverData() {
+    debugPrint('👂 Listening to driver data updates');
+    
+    _driverDataSubscription = _firestoreService.streamDriver(widget.user.id).listen(
+      (driver) {
+        if (mounted) {
+          setState(() {
+            _driverData = driver;
+          });
+        }
+      },
+      onError: (error) {
+        debugPrint('❌ Error in driver data stream: $error');
+      },
+    );
+  }
+
+  // Listen for order requests
+  void _listenForOrderRequests() {
+    debugPrint('👂 Listening for order requests for driver: ${widget.user.id}');
+    
+    // Cancel existing subscription
+    _orderRequestSubscription?.cancel();
+    
+    // Listen for new order requests
+    _orderRequestSubscription = FirebaseFirestore.instance
+        .collection('orderRequests')
+        .where('driverId', isEqualTo: widget.user.id)
+        .where('status', isEqualTo: 'pending')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .listen(
+      (snapshot) {
+        debugPrint('📬 Order requests snapshot received: ${snapshot.docs.length} docs');
+        
+        for (var change in snapshot.docChanges) {
+          if (change.type == DocumentChangeType.added) {
+            debugPrint('🆕 New order request detected!');
+            debugPrint('   Request ID: ${change.doc.id}');
+            
+            Map<String, dynamic> requestData = change.doc.data() as Map<String, dynamic>;
+            debugPrint('   Order ID: ${requestData['orderId']}');
+            debugPrint('   Restaurant: ${requestData['restaurantName']}');
+            
+            // Show order request modal
+            _showOrderRequestModal(change.doc.id, requestData);
+          }
+        }
+      },
+      onError: (error) {
+        debugPrint('❌ Error in order requests stream: $error');
+      },
+    );
+    
+    debugPrint('✅ Order request listener started');
+  }
+
+  void _showOrderRequestModal(String requestId, Map<String, dynamic> requestData) {
+    debugPrint('🔔 Showing order request modal');
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => OrderRequestModal(
+        driverId: widget.user.id,
+        requestData: requestData,
+        requestId: requestId,
+      ),
+    ).then((accepted) {
+      debugPrint('📋 Order request dialog closed. Accepted: $accepted');
+      
+      if (accepted == true) {
+        // Reload driver data to reflect new order
+        _loadDriverData();
+      }
+    });
   }
 
   @override
@@ -166,7 +286,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   ),
                 ),
 
-                // Active orders
+                // Active orders header
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
@@ -230,6 +350,17 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                                   color: Colors.grey[600],
                                 ),
                               ),
+                              if (_isOnline) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Orders will appear here when restaurants are ready',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[500],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                             ],
                           ),
                         );
@@ -382,7 +513,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color),
       ),
@@ -398,41 +529,98 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   }
 
   Future<void> _toggleOnlineStatus(bool goOnline) async {
+    debugPrint('🔄 Toggling online status: $goOnline');
+    
     if (goOnline) {
-      // Request location permission
+      // Going online - need location permission
+      debugPrint('📍 Requesting location permission...');
+      
       bool hasPermission = await _locationService.requestPermission();
       if (!hasPermission) {
+        debugPrint('❌ Location permission denied');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Location permission is required to go online'),
+            backgroundColor: Colors.red,
           ),
         );
         return;
       }
-
+      
+      debugPrint('✅ Location permission granted');
+      
+      // Get initial location
+      debugPrint('📍 Getting initial location...');
+      var position = await _locationService.getCurrentLocation();
+      
+      if (position == null) {
+        debugPrint('❌ Could not get location');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not get your location. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      debugPrint('✅ Initial location: ${position.latitude}, ${position.longitude}');
+      
       // Start location tracking
+      debugPrint('🚗 Starting location tracking...');
       _locationService.startTracking(
         driverId: widget.user.id,
         hasActiveDelivery: false,
       );
+      
+      // Start listening for order requests
+      debugPrint('👂 Starting order request listener...');
+      _listenForOrderRequests();
+      
     } else {
+      // Going offline
+      debugPrint('🛑 Going offline...');
+      
       // Stop location tracking
       _locationService.stopTracking();
+      
+      // Stop listening for order requests
+      _orderRequestSubscription?.cancel();
+      _orderRequestSubscription = null;
+      
+      debugPrint('✅ Stopped tracking and listening');
     }
 
     try {
+      // Update driver status in Firestore
+      debugPrint('💾 Updating Firestore...');
       await _firestoreService.updateDriverOnlineStatus(widget.user.id, goOnline);
+      
       setState(() => _isOnline = goOnline);
+      
+      debugPrint('✅ Driver status updated in Firestore');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(goOnline ? 'You are now online!' : 'You are now offline'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(goOnline 
+              ? 'You are now online! Waiting for orders...' 
+              : 'You are now offline'),
+            backgroundColor: goOnline ? Colors.green : Colors.grey,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      debugPrint('❌ Error updating driver status: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

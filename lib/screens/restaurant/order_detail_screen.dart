@@ -1,8 +1,11 @@
 // lib/screens/restaurant/order_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../models/order_model.dart';
-import '../../foodrunner/lib/services/firestore_service.dart';
+import '../../../../models/order_model.dart';
+import '../../services/firestore_service.dart';
+import '../../services/driver_assignment_service.dart';
+
+final DriverAssignmentService _driverAssignmentService = DriverAssignmentService();
 
 class OrderDetailScreen extends StatefulWidget {
   final OrderModel order;
@@ -45,43 +48,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status card
-            Card(
-              color: _getStatusColor(_order.status).withOpacity(0.1),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(
-                      _getStatusIcon(_order.status),
-                      size: 40,
-                      color: _getStatusColor(_order.status),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _getStatusText(_order.status),
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: _getStatusColor(_order.status),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Placed ${DateFormat('MMM dd, hh:mm a').format(_order.createdAt)}',
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            // Live Status Card with Animation
+            _buildLiveStatusCard(),
             const SizedBox(height: 24),
 
             // Customer info
@@ -203,7 +171,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     child: Icon(Icons.delivery_dining),
                   ),
                   title: Text(_order.driverName ?? 'Driver'),
-                  subtitle: const Text('Assigned to delivery'),
+                  subtitle: Text(_order.getStatusMessage()),
+                  trailing: Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -215,6 +187,232 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildLiveStatusCard() {
+    final bool isSearchingDriver = _order.status == OrderStatus.finding_driver;
+    final bool noDriverAvailable = _order.status == OrderStatus.no_driver_available;
+    final bool driverAssigned = _order.driverId != null;
+
+    return Card(
+      elevation: 4,
+      color: _order.getStatusColor().withValues(alpha: 0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                // Animated icon for searching
+                if (isSearchingDriver)
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: CircularProgressIndicator(
+                      color: _order.getStatusColor(),
+                      strokeWidth: 3,
+                    ),
+                  )
+                else
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _order.getStatusColor(),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _order.getStatusIcon(),
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _getStatusTitle(_order.status),
+                        style: TextStyle(
+                          color: _order.getStatusColor(),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _order.getStatusMessage(),
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            
+            // Show additional info based on status
+            if (isSearchingDriver) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.amber[700], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Broadcasting to nearby drivers...',
+                        style: TextStyle(
+                          color: Colors.amber[900],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            if (noDriverAvailable) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red[200]!),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.red[700], size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'No drivers accepted yet',
+                            style: TextStyle(
+                              color: Colors.red[900],
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _retryBroadcast,
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Retry Finding Driver'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            if (driverAssigned) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green[700], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${_order.driverName} is handling this order',
+                        style: TextStyle(
+                          color: Colors.green[900],
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Add retry broadcast method:
+  Future<void> _retryBroadcast() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Retrying to find drivers...'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+
+      await _driverAssignmentService.broadcastOrderToNearbyDrivers(_order);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Broadcast sent again!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  // Add helper for status titles:
+  String _getStatusTitle(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return 'New Order';
+      case OrderStatus.accepted:
+        return 'Accepted';
+      case OrderStatus.preparing:
+        return 'Preparing';
+      case OrderStatus.ready_for_pickup:
+        return 'Ready';
+      case OrderStatus.finding_driver:
+        return 'Finding Driver';
+      case OrderStatus.no_driver_available:
+        return 'No Driver Available';
+      case OrderStatus.driver_assigned:
+        return 'Driver Assigned';
+      case OrderStatus.driver_at_restaurant:
+        return 'Driver Arrived';
+      case OrderStatus.out_for_delivery:
+        return 'Out for Delivery';
+      case OrderStatus.delivered:
+        return 'Delivered';
+      case OrderStatus.cancelled:
+        return 'Cancelled';
+      default:
+        return 'Processing';
+    }
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
@@ -388,14 +586,44 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Future<void> _markAsReady() async {
     try {
+      // Step 1: Mark order as ready for pickup
       await _firestoreService.updateOrderStatus(
           _order.id, OrderStatus.ready_for_pickup);
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order is ready for pickup!')),
+        const SnackBar(
+          content: Text('Order ready! Finding nearby drivers...'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+
+      // Step 2: Wait a moment for status to update
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Step 3: Reload order with updated status
+      OrderModel? updatedOrder = await _firestoreService.getOrder(_order.id);
+      
+      if (updatedOrder == null) {
+        throw Exception('Failed to reload order');
+      }
+
+      // Step 4: Broadcast to nearby drivers
+      await _driverAssignmentService.broadcastOrderToNearbyDrivers(updatedOrder);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order broadcast to nearby drivers!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
       );
     } catch (e) {
+     debugPrint('Error in _markAsReady: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
