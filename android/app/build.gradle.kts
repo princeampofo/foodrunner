@@ -8,8 +8,19 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-def MAPS_API_KEY = project.findProperty("MAPS_API_KEY") ?: ""
-def PLACES_API_KEY = project.findProperty("PLACES_API_KEY") ?: ""
+import java.util.Properties
+import java.io.FileInputStream
+
+// Load values from local.properties
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+val MAPS_API_KEY: String = localProperties.getProperty("MAPS_API_KEY") ?: ""
+val PLACES_API_KEY: String = localProperties.getProperty("PLACES_API_KEY") ?: ""
 
 android {
     namespace = "com.example.foodrunner"
@@ -34,6 +45,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["MAPS_API_KEY"] = MAPS_API_KEY
+        manifestPlaceholders["PLACES_API_KEY"] = PLACES_API_KEY
+
     }
 
     buildTypes {
