@@ -49,12 +49,22 @@ class AuthService {
           'name': name,
           'phone': phone,
           'email': email,
+          'vehicleType': additionalData['vehicleType'] ?? '',
+          'licensePlate': additionalData['licensePlate'] ?? '',
+          'vehicleImageUrl': null,
+          'currentLocation': null,
+          'geohash': null,
           'isOnline': false,
-          'isAvailable': true,
+          'isAvailable': false,
           'activeOrderIds': [],
+          'maxCapacity': 4,
           'rating': 5.0,
           'totalDeliveries': 0,
           'todayEarnings': 0.0,
+          'lastUpdated': null,
+          'heading': 0.0,             
+          'speed': 0.0,               
+          'accuracy': 0.0,            
         });
       } else if (role == UserRole.restaurant && additionalData != null) {
         await _firestore.collection('restaurants').doc(user.id).set({

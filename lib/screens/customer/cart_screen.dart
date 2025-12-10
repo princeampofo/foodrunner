@@ -7,6 +7,7 @@ import '../../../../models/user_model.dart';
 import '../../../../models/order_model.dart';
 import '../../services/firestore_service.dart';
 import 'order_tracking_screen.dart';
+import '../../services/geocoding_service.dart';
 
 class CartScreen extends StatefulWidget {
   final RestaurantModel restaurant;
@@ -26,7 +27,8 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   final FirestoreService _firestoreService = FirestoreService();
-  final _addressController = TextEditingController(text: '123 Main St, Atlanta, GA');
+  final _addressController = TextEditingController(text: '6871 Peachtree Dunwoody Rd, Atlanta, GA 30328');
+  final GeocodingService _geocodingService = GeocodingService();
   bool _isLoading = false;
   List<MenuItemModel> _menuItems = [];
 
@@ -273,44 +275,69 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> _placeOrder() async {
+    if (_addressController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter delivery address')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      // Create order items
-      List<OrderItem> orderItems = _menuItems.map((item) {
-        return OrderItem(
-          menuItemId: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: widget.cart[item.id]!,
-        );
-      }).toList();
+      debugPrint('📍 Converting delivery address to coordinates...');
+      
+      // Geocode the delivery address
+      GeoPoint? deliveryLocation = await _geocodingService.geocodeAddress(
+        _addressController.text.trim(),
+      );
+      
+      if (deliveryLocation == null) {
+        throw Exception('Could not find location for this address. Please enter a valid address.');
+      }
+      
+      debugPrint('✅ Delivery location: ${deliveryLocation.latitude}, ${deliveryLocation.longitude}');
 
-      // Create order
+      // Create order with coordinates
       OrderModel order = OrderModel(
-        id: '', // Will be set by Firestore
+        id: '',
         customerId: widget.user.id,
         customerName: widget.user.name,
         customerPhone: widget.user.phone,
         restaurantId: widget.restaurant.id,
         restaurantName: widget.restaurant.name,
-        items: orderItems,
+        restaurantLocation: widget.restaurant.location, // Already a GeoPoint
+        restaurantAddress: widget.restaurant.address,
+        items: widget.cart.entries.map((entry) {
+          final menuItem = _menuItems.firstWhere((item) => item.id == entry.key);
+          return OrderItem(
+            menuItemId: entry.key,
+            name: menuItem.name,
+            price: menuItem.price,
+            quantity: entry.value,
+            specialInstructions: null,
+          );
+        }).toList(),
         subtotal: _subtotal,
-        deliveryFee: _deliveryFee,
+        deliveryFee: 2.99,
         tax: _tax,
         total: _total,
         status: OrderStatus.pending,
-        deliveryLocation: const GeoPoint(33.7490, -84.3880), // Default location
-        deliveryAddress: _addressController.text,
-        restaurantLocation: widget.restaurant.location,
+        deliveryLocation: deliveryLocation,      // ← Geocoded coordinates
+        deliveryAddress: _addressController.text.trim(),
+        driverId: null,
+        driverName: null,
         createdAt: DateTime.now(),
+        estimatedPrepTime: 30,
+        priority: 1,
       );
 
-      // Save to Firestore
+      // Save order
       String orderId = await _firestoreService.createOrder(order);
+      debugPrint('✅ Order created: $orderId');
 
-      // Navigate to order tracking
       if (mounted) {
+        // Navigate to tracking screen
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
@@ -319,15 +346,24 @@ class _CartScreenState extends State<CartScreen> {
               user: widget.user,
             ),
           ),
-          (route) => route.isFirst, // Remove all routes except home
+          (route) => route.isFirst,
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error placing order: $e')),
-      );
+      debugPrint('❌ Order placement error: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 }

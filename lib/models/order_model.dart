@@ -7,14 +7,14 @@ enum OrderStatus {
   accepted,
   preparing,
   ready_for_pickup,
-  finding_driver,         // NEW - when broadcasting to drivers
+  finding_driver,     
   driver_assigned,
   driver_at_restaurant,
   out_for_delivery,
   arriving,
   delivered,
   cancelled,
-  no_driver_available,    // NEW - when no drivers respond
+  no_driver_available,   
 }
 
 class OrderItem {
@@ -60,6 +60,7 @@ class OrderModel {
   final String customerPhone;
   final String restaurantId;
   final String restaurantName;
+  final String restaurantAddress;
   final List<OrderItem> items;
   final double subtotal;
   final double deliveryFee;
@@ -87,6 +88,7 @@ class OrderModel {
     required this.customerPhone,
     required this.restaurantId,
     required this.restaurantName,
+    required this.restaurantAddress,
     required this.items,
     required this.subtotal,
     required this.deliveryFee,
@@ -117,6 +119,7 @@ class OrderModel {
       customerPhone: data['customerPhone'] ?? '',
       restaurantId: data['restaurantId'] ?? '',
       restaurantName: data['restaurantName'] ?? '',
+      restaurantAddress: data['restaurantAddress'] ?? '',
       items: (data['items'] as List<dynamic>)
           .map((item) => OrderItem.fromMap(item as Map<String, dynamic>))
           .toList(),
@@ -161,6 +164,7 @@ class OrderModel {
       'customerPhone': customerPhone,
       'restaurantId': restaurantId,
       'restaurantName': restaurantName,
+      'restaurantAddress': restaurantAddress,
       'items': items.map((item) => item.toMap()).toList(),
       'subtotal': subtotal,
       'deliveryFee': deliveryFee,

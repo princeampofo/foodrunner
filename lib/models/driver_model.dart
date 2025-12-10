@@ -19,6 +19,10 @@ class DriverModel {
   final int totalDeliveries;
   final double todayEarnings;
   final DateTime? lastUpdated;
+  final double heading;      
+  final double speed;          
+  final double accuracy;       
+
 
   DriverModel({
     required this.id,
@@ -38,6 +42,9 @@ class DriverModel {
     this.totalDeliveries = 0,
     this.todayEarnings = 0.0,
     this.lastUpdated,
+    this.heading = 0.0,
+    this.speed = 0.0,
+    this.accuracy = 0.0,
   });
 
   factory DriverModel.fromFirestore(DocumentSnapshot doc) {
@@ -62,6 +69,9 @@ class DriverModel {
       lastUpdated: data['lastUpdated'] != null
           ? (data['lastUpdated'] as Timestamp).toDate()
           : null,
+      heading: (data['heading'] ?? 0.0).toDouble(),
+      speed: (data['speed'] ?? 0.0).toDouble(),
+      accuracy: (data['accuracy'] ?? 0.0).toDouble(),
     );
   }
 
@@ -83,7 +93,57 @@ class DriverModel {
       'totalDeliveries': totalDeliveries,
       'todayEarnings': todayEarnings,
       'lastUpdated': lastUpdated != null ? Timestamp.fromDate(lastUpdated!) : null,
+      'heading': heading,
+      'speed': speed,
+      'accuracy': accuracy,
     };
+  }
+
+  // Copy with method for updates
+  DriverModel copyWith({
+    String? id,
+    String? name,
+    String? phone,
+    String? email,
+    String? vehicleType,
+    String? licensePlate,
+    String? vehicleImageUrl,
+    GeoPoint? currentLocation,
+    String? geohash,
+    bool? isOnline,
+    bool? isAvailable,
+    List<String>? activeOrderIds,
+    int? maxCapacity,
+    double? rating,
+    int? totalDeliveries,
+    double? todayEarnings,
+    DateTime? lastUpdated,
+    double? heading,              // ADD THIS LINE
+    double? speed,                // ADD THIS LINE
+    double? accuracy,             // ADD THIS LINE
+  }) {
+    return DriverModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      vehicleType: vehicleType ?? this.vehicleType,
+      licensePlate: licensePlate ?? this.licensePlate,
+      vehicleImageUrl: vehicleImageUrl ?? this.vehicleImageUrl,
+      currentLocation: currentLocation ?? this.currentLocation,
+      geohash: geohash ?? this.geohash,
+      isOnline: isOnline ?? this.isOnline,
+      isAvailable: isAvailable ?? this.isAvailable,
+      activeOrderIds: activeOrderIds ?? this.activeOrderIds,
+      maxCapacity: maxCapacity ?? this.maxCapacity,
+      rating: rating ?? this.rating,
+      totalDeliveries: totalDeliveries ?? this.totalDeliveries,
+      todayEarnings: todayEarnings ?? this.todayEarnings,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+      heading: heading ?? this.heading,            
+      speed: speed ?? this.speed,                      
+      accuracy: accuracy ?? this.accuracy,            
+    );
   }
 
   int get currentLoad => activeOrderIds.length;
