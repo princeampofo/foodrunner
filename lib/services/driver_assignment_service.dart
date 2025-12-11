@@ -21,11 +21,11 @@ class DriverAssignmentService {
   // Main method: Broadcast order to nearby drivers
   Future<void> broadcastOrderToNearbyDrivers(OrderModel order) async {
     try {
-      debugPrint('🔍 Broadcasting order ${order.id.substring(0, 8)}...');
-      debugPrint('   Restaurant: ${order.restaurantName}');
-      debugPrint('   Location: ${order.restaurantLocation.latitude}, ${order.restaurantLocation.longitude}');
+      debugPrint('Broadcasting order ${order.id.substring(0, 8)}...');
+      debugPrint('Restaurant: ${order.restaurantName}');
+      debugPrint('Location: ${order.restaurantLocation.latitude}, ${order.restaurantLocation.longitude}');
 
-      // Step 1: Update order status to "finding_driver" (only if not already set)
+      // Update order status to "finding_driver" (only if not already set)
       DocumentSnapshot currentOrder = await _firestore.collection('orders').doc(order.id).get();
       Map<String, dynamic>? currentData = currentOrder.data() as Map<String, dynamic>?;
       
@@ -43,7 +43,7 @@ class DriverAssignmentService {
         });
       }
 
-      // Step 2: Get all online and available drivers
+      // Get all online and available drivers
       QuerySnapshot driversSnapshot = await _firestore
           .collection('drivers')
           .where('isOnline', isEqualTo: true)
@@ -51,14 +51,14 @@ class DriverAssignmentService {
           .get();
 
       if (driversSnapshot.docs.isEmpty) {
-        debugPrint('⚠️ No online drivers available');
+        debugPrint('No online drivers available');
         await _handleNoDriversAvailable(order.id);
         return;
       }
 
-      debugPrint('📍 Found ${driversSnapshot.docs.length} online drivers');
+      debugPrint('Found ${driversSnapshot.docs.length} online drivers');
 
-      // Step 3: Filter drivers by distance and calculate scores
+      // Filter drivers by distance and calculate scores
       List<Map<String, dynamic>> nearbyDrivers = [];
 
       for (var doc in driversSnapshot.docs) {
@@ -76,7 +76,7 @@ class DriverAssignmentService {
           order.restaurantLocation,
         );
 
-        debugPrint('   Driver ${driver.name}: ${(distance / 1000).toStringAsFixed(2)} km away');
+        debugPrint('Driver ${driver.name}: ${(distance / 1000).toStringAsFixed(2)} km away');
 
         // Only consider drivers within 10km (10,000 meters)
         if (distance <= 10000) {
@@ -92,14 +92,14 @@ class DriverAssignmentService {
       }
 
       if (nearbyDrivers.isEmpty) {
-        debugPrint('⚠️ No drivers within 10km radius');
+        debugPrint('No drivers within 10km radius');
         await _handleNoDriversAvailable(order.id);
         return;
       }
 
-      debugPrint('✅ Found ${nearbyDrivers.length} nearby drivers');
+      debugPrint('Found ${nearbyDrivers.length} nearby drivers');
 
-      // Step 4: Sort drivers by score (best driver first)
+      // Sort drivers by score (best driver first)
       nearbyDrivers.sort((a, b) {
         double scoreA = _calculateDriverScore(
           a['distance'],
@@ -114,7 +114,7 @@ class DriverAssignmentService {
         return scoreB.compareTo(scoreA); // Higher score first
       });
 
-      // Step 5: Broadcast to top 3 drivers (or all if less than 3)
+      // Broadcast to top 3 drivers (or all if less than 3)
       int broadcastCount = nearbyDrivers.length > 3 ? 3 : nearbyDrivers.length;
       
       debugPrint('📤 Broadcasting to top $broadcastCount drivers:');
@@ -122,12 +122,12 @@ class DriverAssignmentService {
       for (int i = 0; i < broadcastCount; i++) {
         var driverInfo = nearbyDrivers[i];
         await _createOrderRequest(order, driverInfo);
-        debugPrint('   ✉️  ${i + 1}. ${driverInfo['driverName']} - ${(driverInfo['distance'] / 1000).toStringAsFixed(2)} km');
+        debugPrint('${i + 1}. ${driverInfo['driverName']} - ${(driverInfo['distance'] / 1000).toStringAsFixed(2)} km');
       }
 
-      debugPrint('✅ Broadcast complete!');
+      debugPrint('Broadcast complete!');
     } catch (e) {
-      debugPrint('❌ Error broadcasting order: $e');
+      debugPrint('Error broadcasting order: $e');
       await _handleBroadcastError(order.id, e.toString());
     }
   }
@@ -196,7 +196,6 @@ class DriverAssignmentService {
 
   // Handle when no drivers are available
   Future<void> _handleNoDriversAvailable(String orderId) async {
-    // Don't update the status - keep it at "finding_driver" to avoid UI refresh
     // Just update internal fields for tracking
     await _firestore.collection('orders').doc(orderId).update({
       'lastBroadcastAttempt': FieldValue.serverTimestamp(),
@@ -213,10 +212,10 @@ class DriverAssignmentService {
         
         // Only retry if still looking for a driver
         if (order.status == OrderStatus.finding_driver) {
-          debugPrint('🔄 Retrying broadcast for order ${order.id.substring(0, 8)}');
+          debugPrint('Retrying broadcast for order ${order.id.substring(0, 8)}');
           await broadcastOrderToNearbyDrivers(order);
         } else {
-          debugPrint('ℹ️ Order ${order.id.substring(0, 8)} status changed to ${order.status}, not retrying');
+          debugPrint('Order ${order.id.substring(0, 8)} status changed to ${order.status}, not retrying');
         } 
       }
     });
@@ -240,7 +239,7 @@ class DriverAssignmentService {
     try {
       debugPrint('✅ Assigning order $orderId to driver $driverName');
 
-      // Step 1: Update order status
+      // Update order status
       await _firestore.collection('orders').doc(orderId).update({
         'driverId': driverId,
         'driverName': driverName,
@@ -248,13 +247,13 @@ class DriverAssignmentService {
         'driverAssignedAt': FieldValue.serverTimestamp(),
       });
 
-      // Step 2: Update driver - add order to active orders
+      // Update driver - add order to active orders
       await _firestore.collection('drivers').doc(driverId).update({
         'activeOrderIds': FieldValue.arrayUnion([orderId]),
         'isAvailable': false, // Mark as busy
       });
 
-      // Step 3: Expire all other pending requests for this order
+      // Expire all other pending requests for this order
       QuerySnapshot pendingRequests = await _firestore
           .collection('orderRequests')
           .where('orderId', isEqualTo: orderId)
@@ -270,14 +269,14 @@ class DriverAssignmentService {
         }
       }
 
-      debugPrint('✅ Order assignment complete');
+      debugPrint('Order assignment complete');
     } catch (e) {
-      debugPrint('❌ Error assigning order: $e');
+      debugPrint('Error assigning order: $e');
       rethrow;
     }
   }
 
-  // Auto-expire old order requests (called periodically)
+  // Auto-expire old order requests 
   Future<void> expireOldRequests() async {
     try {
       DateTime now = DateTime.now();
@@ -293,10 +292,10 @@ class DriverAssignmentService {
       }
 
       if (oldRequests.docs.isNotEmpty) {
-        debugPrint('⏱️ Expired ${oldRequests.docs.length} old order requests');
+        debugPrint('Expired ${oldRequests.docs.length} old order requests');
       }
     } catch (e) {
-      debugPrint('❌ Error expiring old requests: $e');
+      debugPrint('Error expiring old requests: $e');
     }
   }
 }

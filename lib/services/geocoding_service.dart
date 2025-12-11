@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:foodrunner/config/secrets.dart';
 
 class GeocodingService {
-  // Replace with your actual Google Maps API key
+  // Google Maps API key
   static const String _apiKey = Secrets.googleMapsApiKey;
   
   // Geocode address to GeoPoint
@@ -32,23 +32,23 @@ class GeocodingService {
           double lat = location['lat'];
           double lng = location['lng'];
           
-          debugPrint('✅ Geocoded to: $lat, $lng');
+          debugPrint('Geocoded to: $lat, $lng');
           return GeoPoint(lat, lng);
         } else {
-          debugPrint('⚠️ Geocoding failed: ${data['status']}');
+          debugPrint('Warning: Geocoding failed: ${data['status']}');
           return null;
         }
       } else {
-        debugPrint('❌ HTTP Error: ${response.statusCode}');
+        debugPrint('HTTP Error: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      debugPrint('❌ Geocoding error: $e');
+      debugPrint('Geocoding error: $e');
       return null;
     }
   }
   
-  // Reverse geocode (GeoPoint to address) - optional
+  // Reverse geocode (GeoPoint to address)
   Future<String?> reverseGeocode(GeoPoint location) async {
     try {
       final response = await http.get(
@@ -66,7 +66,7 @@ class GeocodingService {
       }
       return null;
     } catch (e) {
-      debugPrint('❌ Reverse geocoding error: $e');
+      debugPrint('Reverse geocoding error: $e');
       return null;
     }
   }

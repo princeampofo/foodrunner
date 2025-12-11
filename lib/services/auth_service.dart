@@ -117,7 +117,7 @@ class AuthService {
       }
       return null;
     } catch (e) {
-      // print('Get user data error: $e');
+      debugPrint('Get user data error: $e');
       return null;
     }
   }

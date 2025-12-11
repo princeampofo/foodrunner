@@ -68,15 +68,15 @@ class DirectionsService {
             encodedPolyline: encodedPolyline,
           );
         } else {
-          debugPrint('⚠️ Directions API error: ${data['status']}');
+          debugPrint('Directions API error: ${data['status']}');
           return null;
         }
       } else {
-        debugPrint('❌ HTTP Error: ${response.statusCode}');
+        debugPrint('HTTP Error: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      debugPrint('❌ Directions API error: $e');
+      debugPrint('Directions API error: $e');
       return null;
     }
   }

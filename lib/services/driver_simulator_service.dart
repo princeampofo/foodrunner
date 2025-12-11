@@ -23,11 +23,11 @@ class DriverSimulatorService {
     int speedKmh = 40,
   }) async {
     if (_isSimulating) {
-      debugPrint('⚠️ Simulation already running');
+      debugPrint('Simulation already running');
       return;
     }
 
-    debugPrint('🚗 Starting driver simulation with real route');
+    debugPrint('Starting driver simulation with real route');
     debugPrint('   From: ${startLocation.latitude}, ${startLocation.longitude}');
     debugPrint('   To: ${endLocation.latitude}, ${endLocation.longitude}');
     debugPrint('   Speed: $speedKmh km/h');
@@ -42,10 +42,10 @@ class DriverSimulatorService {
     );
 
     if (routeInfo == null) {
-      debugPrint('❌ Could not get route, falling back to straight line');
+      debugPrint('Could not get route, falling back to straight line');
       _routePoints = _generateStraightLineRoute(startLocation, endLocation);
     } else {
-      debugPrint('✅ Using real route with ${routeInfo.points.length} points');
+      debugPrint('Using real route with ${routeInfo.points.length} points');
       debugPrint('   Distance: ${routeInfo.distanceText}');
       debugPrint('   Duration: ${routeInfo.durationText}');
       
@@ -53,8 +53,7 @@ class DriverSimulatorService {
       _routePoints = routeInfo.points;
       
       // Optionally interpolate more points for smoother movement
-      // _routePoints = _interpolateRoutePoints(_routePoints!, targetPointCount: 100);
-      debugPrint('   Interpolated to ${_routePoints!.length} points for smooth movement');
+      debugPrint('Interpolated to ${_routePoints!.length} points for smooth movement');
     }
 
     // Calculate update interval based on speed
@@ -128,7 +127,7 @@ class DriverSimulatorService {
 
   // Stop simulation
   void stopSimulation() {
-    debugPrint('🛑 Stopping driver simulation');
+    debugPrint('Stopping driver simulation');
     _simulationTimer?.cancel();
     _simulationTimer = null;
     _isSimulating = false;
@@ -136,43 +135,7 @@ class DriverSimulatorService {
     _currentPointIndex = 0;
   }
 
-  // Interpolate points for smoother movement
-  // List<GeoPoint> _interpolateRoutePoints(
-  //   List<GeoPoint> originalPoints, {
-  //   int targetPointCount = 100,
-  // }) {
-  //   if (originalPoints.length >= targetPointCount) {
-  //     return originalPoints;
-  //   }
-
-  //   List<GeoPoint> interpolated = [];
-    
-  //   // Calculate how many points to insert between each original point
-  //   int pointsPerSegment = (targetPointCount / (originalPoints.length - 1)).ceil();
-
-  //   for (int i = 0; i < originalPoints.length - 1; i++) {
-  //     GeoPoint start = originalPoints[i];
-  //     GeoPoint end = originalPoints[i + 1];
-      
-  //     // Add start point
-  //     interpolated.add(start);
-      
-  //     // Interpolate points between start and end
-  //     for (int j = 1; j < pointsPerSegment; j++) {
-  //       double fraction = j / pointsPerSegment;
-  //       double lat = start.latitude + (end.latitude - start.latitude) * fraction;
-  //       double lng = start.longitude + (end.longitude - start.longitude) * fraction;
-  //       interpolated.add(GeoPoint(lat, lng));
-  //     }
-  //   }
-    
-  //   // Add final point
-  //   interpolated.add(originalPoints.last);
-    
-  //   return interpolated;
-  // }
-
-  // Fallback: Generate straight line if API fails
+  // Generate straight line if API fails
   List<GeoPoint> _generateStraightLineRoute(
     GeoPoint start,
     GeoPoint end, {
@@ -210,7 +173,7 @@ class DriverSimulatorService {
     double x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon);
     double bearing = atan2(y, x);
     
-    // Convert to degrees (0-360)
+    // Convert to degrees
     bearing = _radiansToDegrees(bearing);
     bearing = (bearing + 360) % 360;
     
@@ -239,7 +202,7 @@ class DriverSimulatorService {
         'lastUpdated': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      debugPrint('❌ Error updating driver location: $e');
+      debugPrint('Error updating driver location: $e');
     }
   }
 
@@ -286,7 +249,7 @@ class DriverSimulatorService {
     return hash;
   }
 
-  // Getter for route points (for drawing polyline)
+  // Getter for route points
   List<GeoPoint>? get routePoints => _routePoints;
   
   bool get isSimulating => _isSimulating;

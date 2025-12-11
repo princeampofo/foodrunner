@@ -35,10 +35,10 @@ class LocationService {
         desiredAccuracy: LocationAccuracy.high,
       );
       
-      debugPrint('📍 Current location: ${position.latitude}, ${position.longitude}');
+      debugPrint('Current location: ${position.latitude}, ${position.longitude}');
       return position;
     } catch (e) {
-      debugPrint('❌ Error getting location: $e');
+      debugPrint('Error getting location: $e');
       return null;
     }
   }
@@ -48,7 +48,7 @@ class LocationService {
     required String driverId,
     required bool hasActiveDelivery,
   }) {
-    debugPrint('🚗 Starting location tracking for driver: $driverId');
+    debugPrint('Starting location tracking for driver: $driverId');
     debugPrint('   Active delivery: $hasActiveDelivery');
     
     // Cancel any existing subscription
@@ -58,21 +58,21 @@ class LocationService {
     _locationSubscription = Geolocator.getPositionStream(
       locationSettings: LocationSettings(
         accuracy: hasActiveDelivery
-            ? LocationAccuracy.high      // More accurate during delivery
-            : LocationAccuracy.medium,   // Less battery drain when idle
-        distanceFilter: hasActiveDelivery ? 10 : 50,  // Update every 10m or 50m
+            ? LocationAccuracy.high      
+            : LocationAccuracy.medium,  
+        distanceFilter: hasActiveDelivery ? 10 : 50, 
       ),
     ).listen(
       (Position position) {
-        debugPrint('📍 Location update: ${position.latitude}, ${position.longitude}');
+        debugPrint('Location update: ${position.latitude}, ${position.longitude}');
         _updateDriverLocation(driverId, position);
       },
       onError: (error) {
-        debugPrint('❌ Location stream error: $error');
+        debugPrint('Location stream error: $error');
       },
     );
     
-    debugPrint('✅ Location tracking started');
+    debugPrint('Location tracking started');
   }
 
   // Update driver location in Firestore
@@ -90,16 +90,14 @@ class LocationService {
         'lastUpdated': FieldValue.serverTimestamp(),
       });
       
-      // Don't debugPrint every update to avoid spam
-      // debugPrint('✅ Location updated in Firestore');
     } catch (e) {
-      debugPrint('❌ Error updating driver location: $e');
+      debugPrint('Error updating driver location: $e');
     }
   }
 
   // Stop tracking
   void stopTracking() {
-    debugPrint('🛑 Stopping location tracking');
+    debugPrint('Stopping location tracking');
     _locationSubscription?.cancel();
     _locationSubscription = null;
   }

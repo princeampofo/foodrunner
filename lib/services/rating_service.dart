@@ -9,7 +9,7 @@ class RatingService {
   // Submit rating for order
   Future<void> submitRating(RatingModel rating) async {
     try {
-      debugPrint('⭐ Submitting rating for order ${rating.orderId}');
+      debugPrint('Submitting rating for order ${rating.orderId}');
       
       // Create rating document
       DocumentReference ratingRef = await _firestore.collection('ratings').add(rating.toMap());
@@ -28,9 +28,9 @@ class RatingService {
       // Update driver average rating
       await _updateDriverRating(rating.driverId);
 
-      debugPrint('✅ Rating submitted successfully');
+      debugPrint('Rating submitted successfully');
     } catch (e) {
-      debugPrint('❌ Error submitting rating: $e');
+      debugPrint('Error submitting rating: $e');
       rethrow;
     }
   }
@@ -61,9 +61,9 @@ class RatingService {
         'totalReviews': totalReviews,
       });
 
-      debugPrint('✅ Updated restaurant rating: ${averageRating.toStringAsFixed(1)} ($totalReviews reviews)');
+      debugPrint('Updated restaurant rating: ${averageRating.toStringAsFixed(1)} ($totalReviews reviews)');
     } catch (e) {
-      debugPrint('❌ Error updating restaurant rating: $e');
+      debugPrint('Error updating restaurant rating: $e');
     }
   }
 
@@ -93,9 +93,9 @@ class RatingService {
         'totalReviews': totalReviews,
       });
 
-      debugPrint('✅ Updated driver rating: ${averageRating.toStringAsFixed(1)} ($totalReviews reviews)');
+      debugPrint('Updated driver rating: ${averageRating.toStringAsFixed(1)} ($totalReviews reviews)');
     } catch (e) {
-      debugPrint('❌ Error updating driver rating: $e');
+      debugPrint('Error updating driver rating: $e');
     }
   }
 
@@ -112,7 +112,7 @@ class RatingService {
 
       return RatingModel.fromFirestore(snapshot.docs.first);
     } catch (e) {
-      debugPrint('❌ Error getting rating: $e');
+      debugPrint('Error getting rating: $e');
       return null;
     }
   }

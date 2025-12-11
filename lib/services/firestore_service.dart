@@ -219,7 +219,7 @@ class FirestoreService {
   Future<void> updateDriverOnlineStatus(String driverId, bool isOnline) async {
     await _firestore.collection('drivers').doc(driverId).update({
       'isOnline': isOnline,
-      'isAvailable': isOnline, // When going offline, also mark unavailable
+      'isAvailable': isOnline,
     });
   }
 
@@ -227,7 +227,7 @@ class FirestoreService {
   Future<void> addOrderToDriver(String driverId, String orderId) async {
     await _firestore.collection('drivers').doc(driverId).update({
       'activeOrderIds': FieldValue.arrayUnion([orderId]),
-      'isAvailable': false, // Mark as busy
+      'isAvailable': false, 
     });
   }
 
@@ -241,7 +241,7 @@ class FirestoreService {
 
     await _firestore.collection('drivers').doc(driverId).update({
       'activeOrderIds': activeOrders,
-      'isAvailable': activeOrders.isEmpty, // Available if no active orders
+      'isAvailable': activeOrders.isEmpty, 
       'totalDeliveries': FieldValue.increment(1),
     });
   }
