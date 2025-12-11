@@ -1,6 +1,6 @@
 # AI Usage Documentation
 
-This document outlines how AI tools were used during the development of the FoodRunner application.
+This document outlines how AI tools(Chatgpt and Copilot) were used during the development of the FoodRunner application.
 
 ## Where AI Was Used
 
