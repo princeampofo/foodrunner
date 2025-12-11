@@ -116,7 +116,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             onSubmitted: (_) => _performSearch(),
             decoration: InputDecoration(
               hintText: 'Search restaurants',
-              // prefixIcon: const Icon(Icons.search),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear),

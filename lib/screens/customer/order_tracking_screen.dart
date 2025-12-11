@@ -75,7 +75,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         }
         
         // Also reload route if we already have a driver and are in an active delivery status
-        // This handles hot reload scenarios
         if (order.driverId != null && _driverSubscription != null && _polylines.isEmpty) {
           if (order.status == OrderStatus.driver_assigned ||
               order.status == OrderStatus.driver_at_restaurant ||
@@ -111,7 +110,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         setState(() {
           _currentDriver = driver;
         });
-        _updateMarkers(); // This calls _updateDriverCircle()
+        _updateMarkers(); 
         _updateCameraToDriver();
       },
     );
@@ -217,7 +216,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       );
     }
 
-    // Customer location (your location)
+    // Customer location 
     markers.add(
       Marker(
         markerId: const MarkerId('customer'),
@@ -258,16 +257,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         Circle(
           circleId: const CircleId('driver_pulse'),
           center: driverPosition,
-          radius: 50,
-          fillColor: Colors.blue.withValues(alpha: 0.2),
-          strokeColor: Colors.blue.withValues(alpha: 0.4),
+          radius: 70,
+          fillColor: Colors.blue.withValues(alpha: 0.4),
+          strokeColor: Colors.blue.withValues(alpha: 0.6),
           strokeWidth: 9,
           visible: true,
           zIndex: 999,
         ),
       );
 
-      // Inner solid circle (driver's actual position)
+      // Inner solid circle
       circles.add(
         Circle(
           circleId: const CircleId('driver'),
@@ -352,7 +351,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       ),
       body: Column(
         children: [
-          // Map (only show when driver is assigned and en route)
+          // Map (only show when driver is assigned)
           if (showLiveTracking)
             Expanded(
               flex: 2,
@@ -376,7 +375,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       _mapController = controller;
                       
                       // Reload route if we don't have polylines yet
-                      // This handles hot reload scenarios
                       if (_polylines.isEmpty && 
                           _currentOrder!.driverId != null &&
                           (_currentOrder!.status == OrderStatus.driver_assigned ||
@@ -638,6 +636,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   icon: const Icon(Icons.phone, color: Colors.green),
                   onPressed: () {
                     // Call driver (if phone number available)
+                    // For demo, we won't implement this and aonly show the button
                   },
                 ),
               ],

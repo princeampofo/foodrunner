@@ -22,7 +22,7 @@ class RestaurantDetailScreen extends StatefulWidget {
 
 class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   final FirestoreService _firestoreService = FirestoreService();
-  final Map<String, int> _cart = {}; // menuItemId: quantity
+  final Map<String, int> _cart = {};
 
   @override
   Widget build(BuildContext context) {
