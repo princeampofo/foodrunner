@@ -25,12 +25,23 @@ class DriverAssignmentService {
       debugPrint('   Restaurant: ${order.restaurantName}');
       debugPrint('   Location: ${order.restaurantLocation.latitude}, ${order.restaurantLocation.longitude}');
 
-      // Step 1: Update order status to "finding_driver"
-      await _firestore.collection('orders').doc(order.id).update({
-        'status': OrderStatus.finding_driver.toString().split('.').last,
-        'statusMessage': 'Looking for a driver...',
-        'broadcastAt': FieldValue.serverTimestamp(),
-      });
+      // Step 1: Update order status to "finding_driver" (only if not already set)
+      DocumentSnapshot currentOrder = await _firestore.collection('orders').doc(order.id).get();
+      Map<String, dynamic>? currentData = currentOrder.data() as Map<String, dynamic>?;
+      
+      // Only update status if this is the first broadcast attempt
+      if (currentData?['status'] != OrderStatus.finding_driver.toString().split('.').last) {
+        await _firestore.collection('orders').doc(order.id).update({
+          'status': OrderStatus.finding_driver.toString().split('.').last,
+          'statusMessage': 'Looking for a driver...',
+          'broadcastAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Just update the timestamp for tracking, no status change
+        await _firestore.collection('orders').doc(order.id).update({
+          'broadcastAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       // Step 2: Get all online and available drivers
       QuerySnapshot driversSnapshot = await _firestore
@@ -185,27 +196,30 @@ class DriverAssignmentService {
 
   // Handle when no drivers are available
   Future<void> _handleNoDriversAvailable(String orderId) async {
+    // Don't update the status - keep it at "finding_driver" to avoid UI refresh
+    // Just update internal fields for tracking
     await _firestore.collection('orders').doc(orderId).update({
-      'status': OrderStatus.no_driver_available.toString().split('.').last,
-      'statusMessage': 'Finding you a driver. Please wait...',
+      'lastBroadcastAttempt': FieldValue.serverTimestamp(),
+      'broadcastAttemptCount': FieldValue.increment(1),
     });
 
-    // Implement retry logic to broadcast again after 30 seconds if no drivers are available
+    debugPrint('⏳ No drivers available, will retry in 10 seconds...');
+
+    // Implement retry logic to broadcast again after 10 seconds
     Future.delayed(const Duration(seconds: 10), () async {
       DocumentSnapshot orderDoc = await _firestore.collection('orders').doc(orderId).get();
       if (orderDoc.exists) {
         OrderModel order = OrderModel.fromFirestore(orderDoc);
-        if (order.status == OrderStatus.no_driver_available) {
+        
+        // Only retry if still looking for a driver
+        if (order.status == OrderStatus.finding_driver) {
           debugPrint('🔄 Retrying broadcast for order ${order.id.substring(0, 8)}');
           await broadcastOrderToNearbyDrivers(order);
-          
         } else {
-          debugPrint('ℹ️ Order ${order.id.substring(0, 8)} status changed, not retrying');
+          debugPrint('ℹ️ Order ${order.id.substring(0, 8)} status changed to ${order.status}, not retrying');
         } 
       }
     });
-
-
   }
 
   // Handle broadcast errors
