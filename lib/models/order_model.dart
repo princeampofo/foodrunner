@@ -258,7 +258,7 @@ class OrderModel {
       case OrderStatus.delivered:
         return Colors.green[700]!;
       case OrderStatus.cancelled:
-        return Colors.grey;
+        return Colors.red;
     }
   }
   

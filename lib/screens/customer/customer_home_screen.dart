@@ -19,6 +19,27 @@ class CustomerHomeScreen extends StatefulWidget {
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   int _selectedIndex = 0;
   final FirestoreService _firestoreService = FirestoreService();
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _performSearch() {
+    setState(() {
+      _searchQuery = _searchController.text.trim().toLowerCase();
+    });
+  }
+
+  void _clearSearch() {
+    setState(() {
+      _searchController.clear();
+      _searchQuery = '';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,9 +112,20 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         Padding(
           padding: const EdgeInsets.all(16),
           child: TextField(
+            controller: _searchController,
+            onSubmitted: (_) => _performSearch(),
             decoration: InputDecoration(
-              hintText: 'Search restaurants or cuisines',
-              prefixIcon: const Icon(Icons.search),
+              hintText: 'Search restaurants',
+              // prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: _clearSearch,
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.search),
+                      onPressed: _performSearch,
+                    ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -129,11 +161,43 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 );
               }
 
+              // Filter restaurants by name if search query exists
+              List<RestaurantModel> restaurants = snapshot.data!;
+              if (_searchQuery.isNotEmpty) {
+                restaurants = restaurants.where((restaurant) {
+                  return restaurant.name.toLowerCase().contains(_searchQuery);
+                }).toList();
+              }
+
+              if (restaurants.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No restaurants found',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: _clearSearch,
+                        child: const Text('Clear search'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
               return ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: snapshot.data!.length,
+                itemCount: restaurants.length,
                 itemBuilder: (context, index) {
-                  RestaurantModel restaurant = snapshot.data![index];
+                  RestaurantModel restaurant = restaurants[index];
                   return _buildRestaurantCard(restaurant);
                 },
               );

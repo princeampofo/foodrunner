@@ -286,7 +286,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildInfoTile(
               Icons.star,
               'Rating',
-              '${restaurant.rating.toStringAsFixed(1)} ⭐ (${restaurant.totalRatings} reviews)',
+              '${restaurant.rating.toStringAsFixed(1)} ⭐',
             ),
             _buildInfoTile(
               Icons.access_time,
