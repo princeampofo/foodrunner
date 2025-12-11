@@ -5,9 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/user_model.dart';
 import '../../models/driver_model.dart';
 import '../../models/restaurant_model.dart';
-// import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
-// import '../auth/auth_screen.dart';
 import '../../providers/auth_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
