@@ -21,7 +21,8 @@ class DriverModel {
   final DateTime? lastUpdated;
   final double heading;      
   final double speed;          
-  final double accuracy;       
+  final double accuracy; 
+  final int totalReviews;       
 
 
   DriverModel({
@@ -45,6 +46,7 @@ class DriverModel {
     this.heading = 0.0,
     this.speed = 0.0,
     this.accuracy = 0.0,
+    this.totalReviews = 0,
   });
 
   factory DriverModel.fromFirestore(DocumentSnapshot doc) {
@@ -72,6 +74,7 @@ class DriverModel {
       heading: (data['heading'] ?? 0.0).toDouble(),
       speed: (data['speed'] ?? 0.0).toDouble(),
       accuracy: (data['accuracy'] ?? 0.0).toDouble(),
+      totalReviews: data['totalReviews'] ?? 0,
     );
   }
 
@@ -96,6 +99,7 @@ class DriverModel {
       'heading': heading,
       'speed': speed,
       'accuracy': accuracy,
+      'totalReviews': totalReviews,
     };
   }
 
@@ -121,6 +125,7 @@ class DriverModel {
     double? heading,              // ADD THIS LINE
     double? speed,                // ADD THIS LINE
     double? accuracy,             // ADD THIS LINE
+    int? totalReviews,            // ADD THIS LINE
   }) {
     return DriverModel(
       id: id ?? this.id,
@@ -142,7 +147,8 @@ class DriverModel {
       lastUpdated: lastUpdated ?? this.lastUpdated,
       heading: heading ?? this.heading,            
       speed: speed ?? this.speed,                      
-      accuracy: accuracy ?? this.accuracy,            
+      accuracy: accuracy ?? this.accuracy,   
+      totalReviews: totalReviews ?? this.totalReviews,
     );
   }
 

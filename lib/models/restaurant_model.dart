@@ -13,7 +13,8 @@ class RestaurantModel {
   final int totalRatings;
   final int estimatedDeliveryTime; // in minutes
   final bool isOpen;
-  final String ownerId;
+  final String ownerId;      // Average rating
+  final int totalReviews;      // Total number of reviews
 
   RestaurantModel({
     required this.id,
@@ -23,11 +24,12 @@ class RestaurantModel {
     required this.imageUrl,
     required this.location,
     required this.address,
-    this.rating = 0.0,
+    this.rating = 5.0,
     this.totalRatings = 0,
     this.estimatedDeliveryTime = 30,
     this.isOpen = true,
     required this.ownerId,
+    this.totalReviews = 0,
   });
 
   factory RestaurantModel.fromFirestore(DocumentSnapshot doc) {
@@ -45,6 +47,7 @@ class RestaurantModel {
       estimatedDeliveryTime: data['estimatedDeliveryTime'] ?? 30,
       isOpen: data['isOpen'] ?? true,
       ownerId: data['ownerId'] ?? '',
+      totalReviews: data['totalReviews'] ?? 0,
     );
   }
 
@@ -61,6 +64,7 @@ class RestaurantModel {
       'estimatedDeliveryTime': estimatedDeliveryTime,
       'isOpen': isOpen,
       'ownerId': ownerId,
+      'totalReviews': totalReviews,
     };
   }
 }

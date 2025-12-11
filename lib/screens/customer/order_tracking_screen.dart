@@ -1,5 +1,6 @@
 // lib/screens/customer/order_tracking_screen.dart
 import 'package:flutter/material.dart';
+import 'rate_order_screen.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
@@ -336,6 +337,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       );
     }
 
+    
+
     bool showLiveTracking = _showMap && 
                            _currentOrder!.driverId != null &&
                            (_currentOrder!.status == OrderStatus.driver_assigned ||
@@ -405,6 +408,85 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildStatusCard(),
+                  if (_currentOrder!.status == OrderStatus.delivered && !_currentOrder!.isRated) ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RateOrderScreen(order: _currentOrder!),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.star),
+                        label: const Text('Rate Your Experience'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                  // Show if already rated
+                  if (_currentOrder!.isRated) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.green[700]),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Thanks for your feedback!',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green[900],
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    _buildStars(_currentOrder!.restaurantRating ?? 5, size: 16),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Restaurant',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.green[700],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    _buildStars(_currentOrder!.driverRating ?? 5, size: 16),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Driver',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.green[700],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   if (_currentOrder!.driverId != null) _buildDriverInfo(),
                   const SizedBox(height: 16),
@@ -592,6 +674,19 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStars(int rating, {double size = 16}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(rating, (index) {
+        return Icon(
+          Icons.star,
+          size: size,
+          color: Colors.amber,
+        );
+      }),
     );
   }
 
