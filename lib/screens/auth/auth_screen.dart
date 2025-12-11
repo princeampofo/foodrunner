@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // import '../../../services/auth_service.dart';
 import '../../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../../services/geocoding_service.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -18,6 +19,7 @@ class _AuthScreenState extends State<AuthScreen> {
   UserRole _selectedRole = UserRole.customer;
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  final _geocodingService = GeocodingService();
 
   // Controllers
   final _nameController = TextEditingController();
@@ -67,12 +69,30 @@ class _AuthScreenState extends State<AuthScreen> {
         Map<String, dynamic>? additionalData;
 
         if (_selectedRole == UserRole.restaurant) {
+          // Geocode the address to get real coordinates
+          String address = _addressController.text.trim();
+          GeoPoint? location = await _geocodingService.geocodeAddress(address);
+          
+          if (location == null) {
+            // If geocoding fails, show error and don't proceed
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Unable to geocode the address. Please check and try again.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            setState(() => _isLoading = false);
+            return;
+          }
+          
           additionalData = {
             'name': _restaurantNameController.text.trim(),
             'description': 'New restaurant',
             'cuisineType': 'Various',
-            'address': _addressController.text.trim(),
-            'location': const GeoPoint(33.7490, -84.3880), // Default location
+            'address': address,
+            'location': location, // Use the geocoded location
             'imageUrl': 'https://plus.unsplash.com/premium_photo-1661883237884-263e8de8869b?q=80&w=3578&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
           };
         } else if (_selectedRole == UserRole.driver) {

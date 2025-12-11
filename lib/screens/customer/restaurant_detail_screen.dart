@@ -74,7 +74,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                     const Icon(Icons.star, color: Colors.amber, size: 20),
                     const SizedBox(width: 4),
                     Text(
-                      '${widget.restaurant.rating} (${widget.restaurant.totalRatings} ratings)',
+                      '${widget.restaurant.rating}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ],
