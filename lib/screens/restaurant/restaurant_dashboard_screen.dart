@@ -1,11 +1,9 @@
 // lib/screens/restaurant/restaurant_dashboard_screen.dart
 import 'package:flutter/material.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/user_model.dart';
 import '../../models/order_model.dart';
 import '../../services/firestore_service.dart';
-// import '../../services/driver_assignment_service.dart';
 import 'order_detail_screen.dart';
 import 'menu_management_screen.dart';
 import '../shared/profile_screen.dart';
@@ -23,7 +21,6 @@ class RestaurantDashboardScreen extends StatefulWidget {
 class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen>
     with SingleTickerProviderStateMixin {
   final FirestoreService _firestoreService = FirestoreService();
-  // final DriverAssignmentService _driverAssignmentService =  DriverAssignmentService();
   late TabController _tabController;
 
   @override
@@ -89,7 +86,7 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen>
             OrderStatus.preparing,
           ]),
           
-          // Completed Tab (ready onwards, delivered, cancelled)
+          // Completed Tab (ready, delivered, cancelled)
           _buildOrdersList([
             OrderStatus.ready_for_pickup,
             OrderStatus.finding_driver,

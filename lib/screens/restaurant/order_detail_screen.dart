@@ -626,40 +626,4 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       );
     }
   }
-
-  // Color _getStatusColor(OrderStatus status) {
-  //   switch (status) {
-  //     case OrderStatus.pending:
-  //       return Colors.orange;
-  //     case OrderStatus.accepted:
-  //     case OrderStatus.preparing:
-  //       return Colors.blue;
-  //     case OrderStatus.ready_for_pickup:
-  //       return Colors.purple;
-  //     case OrderStatus.delivered:
-  //       return Colors.green;
-  //     case OrderStatus.cancelled:
-  //       return Colors.red;
-  //     default:
-  //       return Colors.grey;
-  //   }
-  // }
-
-  // IconData _getStatusIcon(OrderStatus status) {
-  //   switch (status) {
-  //     case OrderStatus.pending:
-  //       return Icons.access_time;
-  //     case OrderStatus.accepted:
-  //     case OrderStatus.preparing:
-  //       return Icons.restaurant;
-  //     case OrderStatus.ready_for_pickup:
-  //       return Icons.done_all;
-  //     case OrderStatus.delivered:
-  //       return Icons.check_circle;
-  //     case OrderStatus.cancelled:
-  //       return Icons.cancel;
-  //     default:
-  //       return Icons.info;
-  //   }
-  // }
 }

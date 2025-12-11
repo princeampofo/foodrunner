@@ -6,7 +6,7 @@ import '../../services/firestore_service.dart';
 
 class AddEditMenuItemScreen extends StatefulWidget {
   final String restaurantId;
-  final MenuItemModel? menuItem; // null for add, non-null for edit
+  final MenuItemModel? menuItem; 
 
   const AddEditMenuItemScreen({
     super.key,
@@ -303,7 +303,7 @@ class _AddEditMenuItemScreenState extends State<AddEditMenuItemScreen> {
     try {
       // Create menu item object
       MenuItemModel menuItem = MenuItemModel(
-        id: widget.menuItem?.id ?? '', // Will be set by Firestore if new
+        id: widget.menuItem?.id ?? '', 
         restaurantId: widget.restaurantId,
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
