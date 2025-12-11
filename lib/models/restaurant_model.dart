@@ -11,10 +11,10 @@ class RestaurantModel {
   final String address;
   final double rating;
   final int totalRatings;
-  final int estimatedDeliveryTime; // in minutes
+  final int estimatedDeliveryTime; 
   final bool isOpen;
-  final String ownerId;      // Average rating
-  final int totalReviews;      // Total number of reviews
+  final String ownerId;      
+  final int totalReviews;   
 
   RestaurantModel({
     required this.id,

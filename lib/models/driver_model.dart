@@ -122,10 +122,10 @@ class DriverModel {
     int? totalDeliveries,
     double? todayEarnings,
     DateTime? lastUpdated,
-    double? heading,              // ADD THIS LINE
-    double? speed,                // ADD THIS LINE
-    double? accuracy,             // ADD THIS LINE
-    int? totalReviews,            // ADD THIS LINE
+    double? heading,              
+    double? speed,               
+    double? accuracy,             
+    int? totalReviews,           
   }) {
     return DriverModel(
       id: id ?? this.id,

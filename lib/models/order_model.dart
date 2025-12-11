@@ -78,12 +78,12 @@ class OrderModel {
   final DateTime? readyAt;
   final DateTime? pickedUpAt;
   final DateTime? deliveredAt;
-  final int estimatedPrepTime; // minutes
-  final int priority; // 1=normal, 2=high
-  final bool isRated;              // Has customer rated this order?
-  final int? restaurantRating;     // 1-5 stars
-  final int? driverRating;         // 1-5 stars
-  final String? ratingId;          // Reference to rating document
+  final int estimatedPrepTime;  
+  final int priority;
+  final bool isRated;              
+  final int? restaurantRating;     
+  final int? driverRating;        
+  final String? ratingId;      
 
   OrderModel({
     required this.id,

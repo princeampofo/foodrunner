@@ -10,13 +10,13 @@ class RatingModel {
   // Restaurant rating
   final String restaurantId;
   final String restaurantName;
-  final int restaurantRating; // 1-5 stars
+  final int restaurantRating;
   final String? restaurantReview;
   
   // Driver rating
   final String driverId;
   final String driverName;
-  final int driverRating; // 1-5 stars
+  final int driverRating;
   final String? driverReview;
   
   final DateTime createdAt;
