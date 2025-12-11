@@ -27,7 +27,7 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   final FirestoreService _firestoreService = FirestoreService();
-  final _addressController = TextEditingController(text: '6871 Peachtree Dunwoody Rd, Atlanta, GA 30328');
+  final _addressController = TextEditingController(text: '449 Auburn Ave NE');
   final GeocodingService _geocodingService = GeocodingService();
   bool _isLoading = false;
   List<MenuItemModel> _menuItems = [];
@@ -343,7 +343,6 @@ class _CartScreenState extends State<CartScreen> {
           MaterialPageRoute(
             builder: (context) => OrderTrackingScreen(
               orderId: orderId,
-              user: widget.user,
             ),
           ),
           (route) => route.isFirst,

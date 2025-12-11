@@ -201,7 +201,7 @@ class OrderModel {
       case OrderStatus.finding_driver:
         return 'Finding a driver...';
       case OrderStatus.no_driver_available:
-        return 'No drivers available - Retrying...';
+        return 'Finding a driver...';
       case OrderStatus.driver_assigned:
         return driverName != null 
           ? 'Driver assigned: $driverName'
@@ -232,7 +232,7 @@ class OrderModel {
       case OrderStatus.finding_driver:
         return Colors.amber;
       case OrderStatus.no_driver_available:
-        return Colors.red;
+        return Colors.amber;
       case OrderStatus.driver_assigned:
       case OrderStatus.driver_at_restaurant:
         return Colors.teal;
@@ -259,7 +259,7 @@ class OrderModel {
       case OrderStatus.finding_driver:
         return Icons.search;
       case OrderStatus.no_driver_available:
-        return Icons.warning;
+        return Icons.search;
       case OrderStatus.driver_assigned:
       case OrderStatus.driver_at_restaurant:
         return Icons.person;

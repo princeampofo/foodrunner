@@ -187,7 +187,7 @@ class DriverAssignmentService {
   Future<void> _handleNoDriversAvailable(String orderId) async {
     await _firestore.collection('orders').doc(orderId).update({
       'status': OrderStatus.no_driver_available.toString().split('.').last,
-      'statusMessage': 'No drivers available. Retrying...',
+      'statusMessage': 'Finding you a driver. Please wait...',
     });
 
     // Implement retry logic to broadcast again after 30 seconds if no drivers are available

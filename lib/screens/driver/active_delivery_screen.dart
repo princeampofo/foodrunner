@@ -2,16 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
 import 'dart:async';
-import 'package:url_launcher/url_launcher.dart';
 import '../../models/order_model.dart';
 import '../../models/driver_model.dart';
 import '../../services/firestore_service.dart';
 import '../../services/driver_simulator_service.dart';
-import '../../services/directions_service.dart';
-// import 'dart:ui' as ui;
-// import 'dart:typed_data';
-// import 'package:flutter/services.dart';
 
 class ActiveDeliveryScreen extends StatefulWidget {
   final OrderModel order;
@@ -34,132 +30,59 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
   GoogleMapController? _mapController;
   StreamSubscription<OrderModel>? _orderSubscription;
   StreamSubscription<DriverModel>? _driverSubscription;
+  Timer? _distanceCheckTimer;
   
   OrderModel? _currentOrder;
   DriverModel? _currentDriver;
-  OrderStatus? previousStatus;
-  // Add these instance variables:
-  BitmapDescriptor? carIcon;
-  bool isLoadingRoute = false;
   
   Set<Marker> _markers = {};
-  Set<Polyline> _polylines = {};
+  double? _distanceToDestination;
+  bool _isNavigating = false; // Track if navigation has started
+  
+  // Distance thresholds (in meters)
+  static const double ARRIVAL_THRESHOLD = 50.0; // 50 meters
+  static const double COMPLETION_THRESHOLD = 30.0; // 30 meters
 
   @override
   void initState() {
     super.initState();
     _currentOrder = widget.order;
     _currentDriver = widget.driver;
-    previousStatus = widget.order.status;
     
-    _createCarIcon();
-    _initializeMap();
+    _initializeScreen();
     _listenToOrderUpdates();
     _listenToDriverUpdates();
-
-    // Defer simulation start until after the first frame,
-    // when context & inherited widgets (ScaffoldMessenger) are ready.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _checkAndStartSimulation();
-    });
-}
+    _startDistanceMonitoring();
+    
+  }
 
   @override
   void dispose() {
     _orderSubscription?.cancel();
     _driverSubscription?.cancel();
+    _distanceCheckTimer?.cancel();
     _mapController?.dispose();
     _simulatorService.stopSimulation();
     super.dispose();
   }
 
-  void _initializeMap() async {
-     _updateMarkers();
-    await _loadRoutePolyline();
-   
+  void _initializeScreen() {
+    _updateMarkers();
   }
-
-  Future<void> _createCarIcon() async {
-    carIcon = await BitmapDescriptor.asset(
-      const ImageConfiguration(size: Size(48, 48)),
-      'assets/images/car.png',
-    );
-    setState(() {});
-  }
-
-  // Add method to load route polyline:
-  Future<void> _loadRoutePolyline() async {
-    if (_currentOrder == null) return;
-
-    setState(() => isLoadingRoute = true);
-
-    try {
-      bool isPickingUp = _currentOrder!.status == OrderStatus.driver_assigned ||
-          _currentOrder!.status == OrderStatus.driver_at_restaurant;
-
-      GeoPoint origin = _currentDriver?.currentLocation ?? 
-          (isPickingUp ? _currentOrder!.restaurantLocation : _currentOrder!.restaurantLocation);
-      
-      GeoPoint destination = isPickingUp
-          ? _currentOrder!.restaurantLocation
-          : _currentOrder!.deliveryLocation;
-
-      debugPrint('🗺️ Loading route polyline...');
-      
-      final directionsService = DirectionsService();
-      final routeInfo = await directionsService.getRoute(
-        origin: origin,
-        destination: destination,
-      );
-
-      if (routeInfo != null && mounted) {
-        // Create polyline
-        Set<Polyline> polylines = {
-          Polyline(
-            polylineId: const PolylineId('route'),
-            points: routeInfo.points.map((geoPoint) {
-              return LatLng(geoPoint.latitude, geoPoint.longitude);
-            }).toList(),
-            color: Colors.blue,
-            width: 5,
-            patterns: [PatternItem.dash(20), PatternItem.gap(10)],
-          ),
-        };
-
-        setState(() {
-          _polylines = polylines;
-        });
-
-        debugPrint('✅ Polyline loaded with ${routeInfo.points.length} points');
-      }
-    } catch (e) {
-      debugPrint('❌ Error loading route polyline: $e');
-    } finally {
-      if (mounted) {
-        setState(() => isLoadingRoute = false);
-      }
-    }
-  }
-
 
   void _listenToOrderUpdates() {
     _orderSubscription = _firestoreService.streamOrder(_currentOrder!.id).listen(
       (order) {
-        if (mounted) {
-          OrderStatus oldStatus = _currentOrder!.status;
-          
-          setState(() {
-            _currentOrder = order;
-          });
-          
-          _updateMarkers();
-          
-          // Check if status changed
-          if (oldStatus != order.status) {
-            debugPrint('📊 Order status changed: ${oldStatus.toString().split('.').last} → ${order.status.toString().split('.').last}');
-            _handleStatusChange(oldStatus, order.status);
-          }
+        OrderStatus oldStatus = _currentOrder!.status;
+        
+        setState(() {
+          _currentOrder = order;
+        });
+        
+        _updateMarkers();
+        
+        if (oldStatus != order.status) {
+          _handleStatusChange(oldStatus, order.status);
         }
       },
     );
@@ -168,51 +91,61 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
   void _listenToDriverUpdates() {
     _driverSubscription = _firestoreService.streamDriver(widget.driver.id).listen(
       (driver) {
-        if (mounted) {
-          setState(() {
-            _currentDriver = driver;
-          });
-          _updateMarkers();
-          _updateCameraPosition();
-        }
+        setState(() {
+          _currentDriver = driver;
+        });
+        _updateCameraPosition();
       },
     );
   }
 
-  // AUTO-START simulation based on status
-  void _checkAndStartSimulation() {
-    debugPrint('🔍 Checking if simulation should start...');
-    debugPrint('   Current status: ${_currentOrder!.status.toString().split('.').last}');
+  void _startDistanceMonitoring() {
+    // Check distance every 2 seconds
+    _distanceCheckTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      _calculateDistanceToDestination();
+    });
+  }
+
+  void _calculateDistanceToDestination() {
+    if (_currentDriver?.currentLocation == null || _currentOrder == null) return;
+
+    GeoPoint destination;
     
-    if (_currentOrder!.status == OrderStatus.driver_assigned) {
-      debugPrint('✅ Driver just assigned - starting simulation to restaurant');
-      _startSimulationToRestaurant();
-    } else if (_currentOrder!.status == OrderStatus.out_for_delivery) {
-      debugPrint('✅ Order picked up - starting simulation to customer');
-      _startSimulationToCustomer();
+    if (_currentOrder!.status == OrderStatus.driver_assigned ||
+        _currentOrder!.status == OrderStatus.driver_at_restaurant) {
+      destination = _currentOrder!.restaurantLocation;
+    } else if (_currentOrder!.status == OrderStatus.out_for_delivery ||
+               _currentOrder!.status == OrderStatus.arriving) {
+      destination = _currentOrder!.deliveryLocation;
+    } else {
+      return;
+    }
+
+    double distance = Geolocator.distanceBetween(
+      _currentDriver!.currentLocation!.latitude,
+      _currentDriver!.currentLocation!.longitude,
+      destination.latitude,
+      destination.longitude,
+    );
+
+    setState(() {
+      _distanceToDestination = distance;
+    });
+
+    if (_distanceToDestination! % 100 < 2) { // Log every ~100m
+      debugPrint('📏 Distance to destination: ${distance.toStringAsFixed(1)}m');
     }
   }
 
-  // Update _handleStatusChange to reload polyline:
   void _handleStatusChange(OrderStatus oldStatus, OrderStatus newStatus) {
-    debugPrint('🔄 Handling status change: ${oldStatus.toString().split('.').last} → ${newStatus.toString().split('.').last}');
+    debugPrint('🔄 Status changed: ${oldStatus.toString().split('.').last} → ${newStatus.toString().split('.').last}');
     
     // Stop simulation when arriving at restaurant
     if (newStatus == OrderStatus.driver_at_restaurant) {
       debugPrint('🛑 Arrived at restaurant - stopping simulation');
       _simulatorService.stopSimulation();
-    }
-    
-    // Auto-start simulation to customer when order is picked up
-    if (oldStatus == OrderStatus.driver_at_restaurant && 
-        newStatus == OrderStatus.out_for_delivery) {
-      debugPrint('🚗 Order picked up - auto-starting simulation to customer');
-      
-      // Reload polyline for new destination
-      _loadRoutePolyline();
-      
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        _startSimulationToCustomer();
+      setState(() {
+        _isNavigating = false;
       });
     }
     
@@ -220,142 +153,130 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
     if (newStatus == OrderStatus.delivered) {
       debugPrint('🛑 Delivery complete - stopping simulation');
       _simulatorService.stopSimulation();
+      setState(() {
+        _isNavigating = false;
+      });
     }
   }
 
-  void _startSimulationToRestaurant() {
+  // Start navigation to restaurant
+  void _startNavigationToRestaurant() {
+    if (_isNavigating) {
+      debugPrint('⚠️ Already navigating');
+      return;
+    }
+
+    debugPrint('🚗 Starting navigation to restaurant');
+    
     GeoPoint startLocation = _currentDriver!.currentLocation ??
-        const GeoPoint(33.7490, -84.3880); // Default Atlanta location
-
-    GeoPoint destination = _currentOrder!.restaurantLocation;
-
-    debugPrint('🚗 AUTO-STARTING simulation to restaurant');
-    debugPrint('   From: ${startLocation.latitude}, ${startLocation.longitude}');
-    debugPrint('   To: ${destination.latitude}, ${destination.longitude}');
+        const GeoPoint(33.7490, -84.3880);
 
     _simulatorService.startSimulation(
       driverId: widget.driver.id,
       startLocation: startLocation,
-      endLocation: destination,
+      endLocation: _currentOrder!.restaurantLocation,
       speedKmh: 40,
     );
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.navigation, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '🚗 Driving to ${_currentOrder!.restaurantName}...',
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.blue,
-          duration: const Duration(seconds: 3),
+    setState(() {
+      _isNavigating = true;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.navigation, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('🚗 Navigating to ${_currentOrder!.restaurantName}'),
+            ),
+          ],
         ),
-      );
-    }
+        backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
-  void _startSimulationToCustomer() {
+  // Start navigation to customer
+  void _startNavigationToCustomer() {
+    if (_isNavigating) {
+      debugPrint('⚠️ Already navigating');
+      return;
+    }
+
+    debugPrint('🚗 Starting navigation to customer');
+    
     GeoPoint startLocation = _currentDriver!.currentLocation ??
         _currentOrder!.restaurantLocation;
 
-    GeoPoint destination = _currentOrder!.deliveryLocation;
-
-    debugPrint('🚗 AUTO-STARTING simulation to customer');
-    debugPrint('   From: ${startLocation.latitude}, ${startLocation.longitude}');
-    debugPrint('   To: ${destination.latitude}, ${destination.longitude}');
-
     _simulatorService.startSimulation(
       driverId: widget.driver.id,
       startLocation: startLocation,
-      endLocation: destination,
+      endLocation: _currentOrder!.deliveryLocation,
       speedKmh: 40,
     );
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.navigation, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '🚗 Delivering to ${_currentOrder!.customerName}...',
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
+    setState(() {
+      _isNavigating = true;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.navigation, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('🚗 Delivering to ${_currentOrder!.customerName}'),
+            ),
+          ],
         ),
-      );
-    }
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
-  // Update _updateMarkers to use simple circle:
   void _updateMarkers() {
-    if (_currentOrder == null || _currentDriver == null) return;
+    if (_currentOrder == null) return;
 
     Set<Marker> markers = {};
 
-    // Restaurant marker (only if not picked up yet)
-    bool isPickingUp = _currentOrder!.status == OrderStatus.driver_assigned ||
+    // Only show destination marker (restaurant OR customer based on status)
+    bool isGoingToRestaurant = _currentOrder!.status == OrderStatus.driver_assigned ||
         _currentOrder!.status == OrderStatus.driver_at_restaurant;
 
-    if (isPickingUp) {
+    if (isGoingToRestaurant) {
+      // Show restaurant
       markers.add(
         Marker(
-          markerId: const MarkerId('restaurant'),
+          markerId: const MarkerId('destination'),
           position: LatLng(
             _currentOrder!.restaurantLocation.latitude,
             _currentOrder!.restaurantLocation.longitude,
           ),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
           infoWindow: InfoWindow(
-            title: '🍽️ ${_currentOrder!.restaurantName}',
+            title: _currentOrder!.restaurantName,
             snippet: 'Pickup location',
           ),
         ),
       );
-    }
-
-    // Customer marker (delivery destination)
-    markers.add(
-      Marker(
-        markerId: const MarkerId('customer'),
-        position: LatLng(
-          _currentOrder!.deliveryLocation.latitude,
-          _currentOrder!.deliveryLocation.longitude,
-        ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-        infoWindow: InfoWindow(
-          title: '🏠 ${_currentOrder!.customerName}',
-          snippet: 'Delivery location',
-        ),
-      ),
-    );
-
-    // Driver marker - Simple blue circle that follows polyline exactly
-    if (_currentDriver!.currentLocation != null) {
+    } else {
+      // Show customer
       markers.add(
         Marker(
-          markerId: const MarkerId('driver'),
+          markerId: const MarkerId('destination'),
           position: LatLng(
-            _currentDriver!.currentLocation!.latitude,
-            _currentDriver!.currentLocation!.longitude,
+            _currentOrder!.deliveryLocation.latitude,
+            _currentOrder!.deliveryLocation.longitude,
           ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue), // Blue circle
-          anchor: const Offset(0.5, 0.5),
-          infoWindow: const InfoWindow(
-            title: '🚗 Driver',
-            snippet: 'Current location',
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          infoWindow: InfoWindow(
+            title: _currentOrder!.customerName,
+            snippet: 'Delivery location',
           ),
         ),
       );
@@ -366,16 +287,18 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
     });
   }
 
-
   void _updateCameraPosition() {
-    if (_mapController == null || _currentDriver?.currentLocation == null) return;
+    if (_mapController == null) return;
+
+    // Focus on destination marker
+    GeoPoint destination = (_currentOrder!.status == OrderStatus.driver_assigned ||
+                           _currentOrder!.status == OrderStatus.driver_at_restaurant)
+        ? _currentOrder!.restaurantLocation
+        : _currentOrder!.deliveryLocation;
 
     _mapController!.animateCamera(
       CameraUpdate.newLatLng(
-        LatLng(
-          _currentDriver!.currentLocation!.latitude,
-          _currentDriver!.currentLocation!.longitude,
-        ),
+        LatLng(destination.latitude, destination.longitude),
       ),
     );
   }
@@ -388,26 +311,26 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
       );
     }
 
-    bool isPickingUp = _currentOrder!.status == OrderStatus.driver_assigned ||
+    bool isGoingToRestaurant = _currentOrder!.status == OrderStatus.driver_assigned ||
         _currentOrder!.status == OrderStatus.driver_at_restaurant;
 
-    GeoPoint destination = isPickingUp
-        ? _currentOrder!.restaurantLocation
-        : _currentOrder!.deliveryLocation;
-
-    String destinationName = isPickingUp
+    String destinationName = isGoingToRestaurant
         ? _currentOrder!.restaurantName
         : _currentOrder!.customerName;
+
+    GeoPoint destination = isGoingToRestaurant
+        ? _currentOrder!.restaurantLocation
+        : _currentOrder!.deliveryLocation;
 
     return Scaffold(
       appBar: AppBar(
         title: Text('Order #${_currentOrder!.id.substring(0, 8)}'),
         actions: [
-          // Simulation status indicator
+          // Navigation status indicator
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
-              child: _simulatorService.isSimulating
+              child: _isNavigating
                   ? Row(
                       children: [
                         Container(
@@ -420,8 +343,8 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
                         ),
                         const SizedBox(width: 8),
                         const Text(
-                          'Driving',
-                          style: TextStyle(fontSize: 12),
+                          'Navigating',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                       ],
                     )
@@ -437,7 +360,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
                         ),
                         const SizedBox(width: 8),
                         const Text(
-                          'Stopped',
+                          'Idle',
                           style: TextStyle(fontSize: 12),
                         ),
                       ],
@@ -448,25 +371,16 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
       ),
       body: Column(
         children: [
-          // Map
+          // Simplified map showing only destination
           Expanded(
-            flex: 2,
+            flex: 1,
             child: GoogleMap(
               initialCameraPosition: CameraPosition(
-                target: _currentDriver!.currentLocation != null
-                    ? LatLng(
-                        _currentDriver!.currentLocation!.latitude,
-                        _currentDriver!.currentLocation!.longitude,
-                      )
-                    : LatLng(
-                        destination.latitude,
-                        destination.longitude,
-                      ),
-                zoom: 14,
+                target: LatLng(destination.latitude, destination.longitude),
+                zoom: 15,
               ),
               markers: _markers,
-              polylines: _polylines,
-              myLocationEnabled: false,
+              myLocationEnabled: true,
               myLocationButtonEnabled: true,
               zoomControlsEnabled: false,
               mapType: MapType.normal,
@@ -476,28 +390,20 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
             ),
           ),
 
-          // Order details and controls
+          // Driver controls and info
           Expanded(
             flex: 1,
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Status card
-                  _buildStatusCard(isPickingUp, destinationName),
+                  _buildDestinationCard(isGoingToRestaurant, destinationName, destination),
                   const SizedBox(height: 16),
-
-                  // Customer info
-                  _buildCustomerInfo(),
+                  if (_distanceToDestination != null) _buildDistanceCard(),
                   const SizedBox(height: 16),
-
-                  // Order items
-                  _buildOrderItems(),
+                  _buildOrderInfo(),
                   const SizedBox(height: 24),
-
-                  // Action button
-                  _buildActionButton(isPickingUp),
+                  _buildActionButtons(isGoingToRestaurant),
                 ],
               ),
             ),
@@ -507,93 +413,139 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
     );
   }
 
-  Widget _buildStatusCard(bool isPickingUp, String destinationName) {
-    IconData icon;
-    Color color;
-    String title;
-    String subtitle;
-
-    if (_currentOrder!.status == OrderStatus.driver_assigned) {
-      icon = Icons.restaurant;
-      color = Colors.orange;
-      title = 'Going to Restaurant';
-      subtitle = 'Pick up order from $destinationName';
-    } else if (_currentOrder!.status == OrderStatus.driver_at_restaurant) {
-      icon = Icons.restaurant;
-      color = Colors.blue;
-      title = 'At Restaurant';
-      subtitle = 'Pick up the order';
-    } else if (_currentOrder!.status == OrderStatus.out_for_delivery ||
-               _currentOrder!.status == OrderStatus.arriving) {
-      icon = Icons.home;
-      color = Colors.green;
-      title = 'Delivering to Customer';
-      subtitle = 'Deliver to $destinationName';
-    } else {
-      icon = Icons.delivery_dining;
-      color = Colors.grey;
-      title = 'Active Delivery';
-      subtitle = destinationName;
-    }
-
+  Widget _buildDestinationCard(bool isGoingToRestaurant, String name, GeoPoint destination) {
     return Card(
-      color: color.withValues(alpha:0.1),
+      color: isGoingToRestaurant ? Colors.orange[50] : Colors.green[50],
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                      fontSize: 16,
-                    ),
+            Row(
+              children: [
+                Icon(
+                  isGoingToRestaurant ? Icons.restaurant : Icons.home,
+                  color: isGoingToRestaurant ? Colors.orange : Colors.green,
+                  size: 32,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isGoingToRestaurant ? 'Pickup Location' : 'Delivery Location',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Navigate button - starts simulation
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isNavigating 
+                    ? null 
+                    : (isGoingToRestaurant 
+                        ? _startNavigationToRestaurant 
+                        : _startNavigationToCustomer),
+                icon: Icon(_isNavigating ? Icons.navigation : Icons.play_arrow),
+                label: Text(_isNavigating ? 'Navigating...' : 'Start Navigation'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isNavigating ? Colors.grey : Colors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  disabledBackgroundColor: Colors.grey[400],
+                ),
               ),
             ),
-            IconButton(
-              onPressed: () {
-                // Determine destination based on current status
-                GeoPoint dest = (_currentOrder!.status == OrderStatus.driver_assigned ||
-                                _currentOrder!.status == OrderStatus.driver_at_restaurant)
-                    ? _currentOrder!.restaurantLocation
-                    : _currentOrder!.deliveryLocation;
-                
-                _openNavigation(dest);
-              },
-              icon: const Icon(Icons.navigation),
-              color: color,
-            ),
+            
+            // Stop navigation button (when navigating)
+            if (_isNavigating) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    _simulatorService.stopSimulation();
+                    setState(() {
+                      _isNavigating = false;
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('🛑 Navigation stopped'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.stop),
+                  label: const Text('Stop Navigation'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCustomerInfo() {
+  Widget _buildDistanceCard() {
+    String distanceText;
+    Color cardColor;
+    
+    if (_distanceToDestination! >= 1000) {
+      distanceText = '${(_distanceToDestination! / 1000).toStringAsFixed(1)} km away';
+      cardColor = Colors.blue;
+    } else if (_distanceToDestination! > 100) {
+      distanceText = '${_distanceToDestination!.toStringAsFixed(0)} m away';
+      cardColor = Colors.blue;
+    } else {
+      distanceText = '${_distanceToDestination!.toStringAsFixed(0)} m away';
+      cardColor = Colors.green; // Close to destination
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cardColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cardColor.withValues(alpha:0.3)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.location_on, color: cardColor, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            distanceText,
+            style: TextStyle(
+              color: cardColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderInfo() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -601,47 +553,42 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _currentOrder!.customerName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                CircleAvatar(
+                  backgroundColor: Colors.grey[200],
+                  child: const Icon(Icons.person, color: Colors.grey),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _currentOrder!.customerName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _currentOrder!.customerPhone,
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
+                      Text(
+                        _currentOrder!.customerPhone,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
+                  ),
                 ),
                 IconButton(
-                  onPressed: () => _callCustomer(_currentOrder!.customerPhone),
-                  icon: const Icon(Icons.phone),
-                  color: Colors.green,
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.green[50],
-                  ),
+                  onPressed: () {
+                    // Call customer (simplified for demo)
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Calling ${_currentOrder!.customerPhone}...')),
+                    );
+                  },
+                  icon: const Icon(Icons.phone, color: Colors.green),
                 ),
               ],
             ),
             const Divider(height: 20),
-            Row(
-              children: [
-                Icon(Icons.location_on, size: 20, color: Colors.grey[600]),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _currentOrder!.deliveryAddress,
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-                ),
-              ],
+            Text(
+              '${_currentOrder!.items.length} items • \$${_currentOrder!.total.toStringAsFixed(2)}',
+              style: TextStyle(color: Colors.grey[600]),
             ),
           ],
         ),
@@ -649,117 +596,85 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
     );
   }
 
-  Widget _buildOrderItems() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildActionButtons(bool isGoingToRestaurant) {
+    // Determine which button to show based on status and distance
+    String? buttonText;
+    VoidCallback? onPressed;
+    Color? backgroundColor;
+    bool isEnabled = false;
+
+    if (_currentOrder!.status == OrderStatus.driver_assigned) {
+      buttonText = 'Arrived at Restaurant';
+      backgroundColor = Colors.orange;
+      // Only enable if within 50 meters
+      isEnabled = _distanceToDestination != null && 
+                  _distanceToDestination! <= ARRIVAL_THRESHOLD;
+      onPressed = isEnabled ? _markArrivedAtRestaurant : null;
+    } else if (_currentOrder!.status == OrderStatus.driver_at_restaurant) {
+      buttonText = 'Picked Up Order';
+      backgroundColor = Colors.blue;
+      isEnabled = true; // Always enabled once at restaurant
+      onPressed = _markPickedUp;
+    } else if (_currentOrder!.status == OrderStatus.out_for_delivery ||
+               _currentOrder!.status == OrderStatus.arriving) {
+      buttonText = 'Complete Delivery';
+      backgroundColor = Colors.green;
+      // Only enable if within 30 meters
+      isEnabled = _distanceToDestination != null && 
+                  _distanceToDestination! <= COMPLETION_THRESHOLD;
+      onPressed = isEnabled ? _completeDelivery : null;
+    }
+
+    if (buttonText == null) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        // Distance requirement message
+        if (!isEnabled && _distanceToDestination != null)
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.amber[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber[200]!),
+            ),
+            child: Row(
               children: [
-                const Text(
-                  'Order Items',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.orange[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                Icon(Icons.info_outline, color: Colors.amber[700], size: 20),
+                const SizedBox(width: 8),
+                Expanded(
                   child: Text(
-                    '${_currentOrder!.items.length} items',
+                    _currentOrder!.status == OrderStatus.driver_assigned
+                        ? 'Get within 50m of restaurant to mark arrival'
+                        : 'Get within 30m of customer to complete delivery',
                     style: TextStyle(
-                      color: Colors.orange[900],
-                      fontWeight: FontWeight.bold,
+                      color: Colors.amber[900],
                       fontSize: 12,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            ..._currentOrder!.items.take(3).map((item) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '${item.quantity}x',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(item.name)),
-                    ],
-                  ),
-                )),
-            if (_currentOrder!.items.length > 3)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  '+ ${_currentOrder!.items.length - 3} more items',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+          ),
 
-  Widget _buildActionButton(bool isPickingUp) {
-    String buttonText;
-    VoidCallback? onPressed;
-    Color? backgroundColor;
-
-    if (_currentOrder!.status == OrderStatus.driver_assigned) {
-      buttonText = 'Arrived at Restaurant';
-      onPressed = _markArrivedAtRestaurant;
-      backgroundColor = Colors.orange;
-    } else if (_currentOrder!.status == OrderStatus.driver_at_restaurant) {
-      buttonText = 'Picked Up Order';
-      onPressed = _markPickedUp;
-      backgroundColor = Colors.blue;
-    } else if (_currentOrder!.status == OrderStatus.out_for_delivery ||
-        _currentOrder!.status == OrderStatus.arriving) {
-      buttonText = 'Complete Delivery';
-      onPressed = _completeDelivery;
-      backgroundColor = Colors.green;
-    } else {
-      buttonText = 'Continue';
-      onPressed = null;
-      backgroundColor = Colors.grey;
-    }
-
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          disabledBackgroundColor: Colors.grey[300],
+        // Action button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: onPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isEnabled ? backgroundColor : Colors.grey,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              disabledBackgroundColor: Colors.grey[300],
+            ),
+            child: Text(
+              buttonText,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
         ),
-        child: Text(
-          buttonText,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-      ),
+      ],
     );
   }
 
@@ -790,10 +705,16 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
         OrderStatus.out_for_delivery,
       );
       
+      // Reset navigation state for next leg
+      setState(() {
+        _isNavigating = false;
+      });
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('📦 Order picked up! Now delivering to customer...'),
+          content: Text('📦 Order picked up! Now click Navigate to start delivery.'),
           backgroundColor: Colors.blue,
+          duration: Duration(seconds: 3),
         ),
       );
     } catch (e) {
@@ -808,7 +729,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Complete Delivery'),
-        content: const Text('Mark this order as delivered?'),
+        content: const Text('Confirm delivery completion?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -816,9 +737,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             child: const Text('Complete'),
           ),
         ],
@@ -861,20 +780,6 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
           SnackBar(content: Text('Error: $e')),
         );
       }
-    }
-  }
-
-  void _openNavigation(GeoPoint destination) async {
-    final url = 'https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    }
-  }
-
-  void _callCustomer(String phone) async {
-    final url = 'tel:$phone';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
     }
   }
 }

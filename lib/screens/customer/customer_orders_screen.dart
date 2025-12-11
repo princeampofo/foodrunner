@@ -65,7 +65,6 @@ class CustomerOrdersScreen extends StatelessWidget {
             MaterialPageRoute(
               builder: (context) => OrderTrackingScreen(
                 orderId: order.id,
-                user: user,
               ),
             ),
           );

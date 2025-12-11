@@ -1,6 +1,5 @@
 // lib/screens/restaurant/order_detail_screen.dart
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../../../models/order_model.dart';
 import '../../services/firestore_service.dart';
 import '../../services/driver_assignment_service.dart';
@@ -235,7 +234,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       Text(
                         _getStatusTitle(_order.status),
                         style: TextStyle(
-                          color: _order.getStatusColor(),
+                          color: Colors.grey[800],
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                         ),
@@ -293,29 +292,29 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        Icon(Icons.warning, color: Colors.red[700], size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'No drivers accepted yet',
-                            style: TextStyle(
-                              color: Colors.red[900],
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
+                    // Row(
+                    //   children: [
+                    //     Icon(Icons.warning, color: Colors.red[700], size: 20),
+                    //     const SizedBox(width: 8),
+                    //     Expanded(
+                    //       child: Text(
+                    //         'No drivers accepted yet',
+                    //         style: TextStyle(
+                    //           color: Colors.red[900],
+                    //           fontWeight: FontWeight.bold,
+                    //           fontSize: 12,
+                    //         ),
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
+                    // const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: _retryBroadcast,
                         icon: const Icon(Icons.refresh, size: 18),
-                        label: const Text('Retry Finding Driver'),
+                        label: const Text('Speed Up Driver Search'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
                           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -399,7 +398,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       case OrderStatus.finding_driver:
         return 'Finding Driver';
       case OrderStatus.no_driver_available:
-        return 'No Driver Available';
+        return 'Finding A Driver';
       case OrderStatus.driver_assigned:
         return 'Driver Assigned';
       case OrderStatus.driver_at_restaurant:
@@ -628,62 +627,39 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
-  Color _getStatusColor(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return Colors.orange;
-      case OrderStatus.accepted:
-      case OrderStatus.preparing:
-        return Colors.blue;
-      case OrderStatus.ready_for_pickup:
-        return Colors.purple;
-      case OrderStatus.delivered:
-        return Colors.green;
-      case OrderStatus.cancelled:
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
+  // Color _getStatusColor(OrderStatus status) {
+  //   switch (status) {
+  //     case OrderStatus.pending:
+  //       return Colors.orange;
+  //     case OrderStatus.accepted:
+  //     case OrderStatus.preparing:
+  //       return Colors.blue;
+  //     case OrderStatus.ready_for_pickup:
+  //       return Colors.purple;
+  //     case OrderStatus.delivered:
+  //       return Colors.green;
+  //     case OrderStatus.cancelled:
+  //       return Colors.red;
+  //     default:
+  //       return Colors.grey;
+  //   }
+  // }
 
-  IconData _getStatusIcon(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return Icons.access_time;
-      case OrderStatus.accepted:
-      case OrderStatus.preparing:
-        return Icons.restaurant;
-      case OrderStatus.ready_for_pickup:
-        return Icons.done_all;
-      case OrderStatus.delivered:
-        return Icons.check_circle;
-      case OrderStatus.cancelled:
-        return Icons.cancel;
-      default:
-        return Icons.info;
-    }
-  }
-
-  String _getStatusText(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return 'Pending Acceptance';
-      case OrderStatus.accepted:
-        return 'Accepted';
-      case OrderStatus.preparing:
-        return 'Preparing';
-      case OrderStatus.ready_for_pickup:
-        return 'Ready for Pickup';
-      case OrderStatus.driver_assigned:
-        return 'Driver Assigned';
-      case OrderStatus.out_for_delivery:
-        return 'Out for Delivery';
-      case OrderStatus.delivered:
-        return 'Delivered';
-      case OrderStatus.cancelled:
-        return 'Cancelled';
-      default:
-        return 'Processing';
-    }
-  }
+  // IconData _getStatusIcon(OrderStatus status) {
+  //   switch (status) {
+  //     case OrderStatus.pending:
+  //       return Icons.access_time;
+  //     case OrderStatus.accepted:
+  //     case OrderStatus.preparing:
+  //       return Icons.restaurant;
+  //     case OrderStatus.ready_for_pickup:
+  //       return Icons.done_all;
+  //     case OrderStatus.delivered:
+  //       return Icons.check_circle;
+  //     case OrderStatus.cancelled:
+  //       return Icons.cancel;
+  //     default:
+  //       return Icons.info;
+  //   }
+  // }
 }
