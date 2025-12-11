@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// import '../../../services/auth_service.dart';
 import '../../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../../services/geocoding_service.dart';
@@ -115,8 +114,6 @@ class _AuthScreenState extends State<AuthScreen> {
           throw Exception('Sign up failed');
         }
       }
-
-      // Navigation is handled automatically by AuthWrapper
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
