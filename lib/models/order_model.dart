@@ -80,6 +80,10 @@ class OrderModel {
   final DateTime? deliveredAt;
   final int estimatedPrepTime; // minutes
   final int priority; // 1=normal, 2=high
+  final bool isRated;              // Has customer rated this order?
+  final int? restaurantRating;     // 1-5 stars
+  final int? driverRating;         // 1-5 stars
+  final String? ratingId;          // Reference to rating document
 
   OrderModel({
     required this.id,
@@ -108,6 +112,10 @@ class OrderModel {
     this.deliveredAt,
     this.estimatedPrepTime = 20,
     this.priority = 1,
+    this.isRated = false,
+    this.restaurantRating,
+    this.driverRating,
+    this.ratingId,
   });
 
   factory OrderModel.fromFirestore(DocumentSnapshot doc) {
@@ -154,6 +162,10 @@ class OrderModel {
           : null,
       estimatedPrepTime: data['estimatedPrepTime'] ?? 20,
       priority: data['priority'] ?? 1,
+      isRated: data['isRated'] ?? false,
+      restaurantRating: data['restaurantRating'],
+      driverRating: data['driverRating'],
+      ratingId: data['ratingId'],
     );
   }
 
@@ -184,6 +196,10 @@ class OrderModel {
       'deliveredAt': deliveredAt != null ? Timestamp.fromDate(deliveredAt!) : null,
       'estimatedPrepTime': estimatedPrepTime,
       'priority': priority,
+      'isRated': isRated,
+      'restaurantRating': restaurantRating,
+      'driverRating': driverRating,
+      'ratingId': ratingId,
     };
   }
 
