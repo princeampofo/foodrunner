@@ -292,29 +292,29 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
                 child: Column(
                   children: [
-                    // Row(
-                    //   children: [
-                    //     Icon(Icons.warning, color: Colors.red[700], size: 20),
-                    //     const SizedBox(width: 8),
-                    //     Expanded(
-                    //       child: Text(
-                    //         'No drivers accepted yet',
-                    //         style: TextStyle(
-                    //           color: Colors.red[900],
-                    //           fontWeight: FontWeight.bold,
-                    //           fontSize: 12,
-                    //         ),
-                    //       ),
-                    //     ),
-                    //   ],
-                    // ),
-                    // const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.red[700], size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'No drivers accepted yet',
+                            style: TextStyle(
+                              color: Colors.red[900],
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: _retryBroadcast,
                         icon: const Icon(Icons.refresh, size: 18),
-                        label: const Text('Speed Up Driver Search'),
+                        label: const Text('Retry Looking for Drivers'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
                           padding: const EdgeInsets.symmetric(vertical: 8),

@@ -24,6 +24,8 @@ class DirectionsService {
           'origin=${origin.latitude},${origin.longitude}'
           '&destination=${destination.latitude},${destination.longitude}'
           '&mode=driving'
+          '&departure_time=now'
+          '&traffic_model=best_guess'
           '&key=$_apiKey';
 
       final response = await http.get(Uri.parse(url));
