@@ -1,6 +1,5 @@
 // lib/screens/driver/driver_home_screen.dart
 import 'package:flutter/material.dart';
-// import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import '../../models/user_model.dart';
@@ -8,7 +7,6 @@ import '../../models/driver_model.dart';
 import '../../models/order_model.dart';
 import '../../services/firestore_service.dart';
 import '../../services/location_service.dart';
-// import '../../providers/auth_provider.dart';
 import 'active_delivery_screen.dart';
 import 'driver_earnings_screen.dart';
 import 'order_request_modal.dart';
@@ -513,7 +511,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color),
       ),

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import '../../services/driver_assignment_service.dart';
-// import '../../services/firestore_service.dart';
 
 class OrderRequestModal extends StatefulWidget {
   final String driverId;
@@ -23,7 +22,6 @@ class OrderRequestModal extends StatefulWidget {
 
 class _OrderRequestModalState extends State<OrderRequestModal> {
   final DriverAssignmentService _assignmentService = DriverAssignmentService();
-  // final FirestoreService _firestoreService = FirestoreService();
   
   int _remainingSeconds = 30;
   Timer? _timer;

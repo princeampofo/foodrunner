@@ -339,7 +339,7 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
 
   Future<void> _processCashOut(double amount) async {
     try {
-      // In production, integrate with payment gateway (Stripe, PayPal, etc.)
+      // Demo: Simply reset today's earnings and create a cash out record
       await FirebaseFirestore.instance
           .collection('drivers')
           .doc(widget.driverId)

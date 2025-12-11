@@ -37,11 +37,11 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
   
   Set<Marker> _markers = {};
   double? _distanceToDestination;
-  bool _isNavigating = false; // Track if navigation has started
+  bool _isNavigating = false;
   
   // Distance thresholds (in meters)
-  static const double ARRIVAL_THRESHOLD = 50.0; // 50 meters
-  static const double COMPLETION_THRESHOLD = 30.0; // 30 meters
+  static const double ARRIVAL_THRESHOLD = 50.0;
+  static const double COMPLETION_THRESHOLD = 30.0; 
 
   @override
   void initState() {
@@ -132,7 +132,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
       _distanceToDestination = distance;
     });
 
-    if (_distanceToDestination! % 100 < 2) { // Log every ~100m
+    if (_distanceToDestination! % 100 < 2) { 
       debugPrint('📏 Distance to destination: ${distance.toStringAsFixed(1)}m');
     }
   }
@@ -629,7 +629,7 @@ class _ActiveDeliveryScreenState extends State<ActiveDeliveryScreen> {
 
     return Column(
       children: [
-        // Distance requirement message
+        // Distance requirement info
         if (!isEnabled && _distanceToDestination != null)
           Container(
             margin: const EdgeInsets.only(bottom: 12),
