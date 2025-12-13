@@ -204,6 +204,17 @@ In Firebase Console, enable the following:
    flutter run
    ```
 
+### Spoof Location for Testing
+To test location-based features, you can spoof your device's/emulator's location. By default, the emulator/simulator coordinates may be set to Google's headquarters. You can change this to any desired coordinates using the following commands:
+**Emulator/Simulator:**
+```
+adb -s <device_id> emu geo fix <longitude> <latitude>
+```
+Replace `<device_id>`, `<longitude>`, and `<latitude>` with your device ID and desired coordinates.
+eg:
+```adb -s emulator-5554 emu geo fix -84.3563 33.7490```
+
+
 ### Build Release Version
 
 **Android APK:**
