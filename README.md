@@ -1,4 +1,4 @@
-# 🍔 FoodRunner
+# FoodRunner
 
 A comprehensive food delivery application built with Flutter and Firebase, featuring real-time order tracking, driver assignment, and multi-role user management.
 
@@ -11,14 +11,12 @@ A comprehensive food delivery application built with Flutter and Firebase, featu
 - [Installation](#installation)
 - [Firebase Setup](#firebase-setup)
 - [Running the App](#running-the-app)
-- [Known Issues & Limitations](#known-issues--limitations)
-- [Future Improvements](#future-improvements)
 
-## 🎯 Overview
+## Overview
 
 FoodRunner is a multi-platform food delivery application that connects customers, restaurants, and delivery drivers in real-time. The app provides a complete end-to-end delivery experience with live tracking, automated driver assignment, and comprehensive order management.
 
-## ✨ Features
+## Features
 
 ### For Customers
 - Browse restaurants and menus
@@ -43,28 +41,7 @@ FoodRunner is a multi-platform food delivery application that connects customers
 - Earnings tracking (daily and total)
 - Delivery history and performance metrics
 
-## 🛠 Tech Stack
-
-- **Framework:** Flutter 3.9.2
-- **Backend:** Firebase
-  - Authentication (Email/Password)
-  - Cloud Firestore (Database)
-  - Firebase Messaging (Push notifications - configured but not implemented)
-- **State Management:** Provider
-- **Maps & Location:**
-  - Google Maps Flutter
-  - Geolocator
-  - GeoFlutterFire Plus
-  - Geocoding
-  - Flutter Polyline Points
-- **Additional Packages:**
-  - cached_network_image
-  - image_picker
-  - intl
-  - uuid
-  - url_launcher
-
-## 📦 Prerequisites
+## Prerequisites
 
 Before you begin, ensure you have the following installed:
 
@@ -75,7 +52,7 @@ Before you begin, ensure you have the following installed:
 - [Firebase CLI](https://firebase.google.com/docs/cli) (for Firebase setup)
 - [Google Maps API Key](https://developers.google.com/maps/documentation/android-sdk/get-api-key)
 
-## 📥 Installation
+## Installation
 
 1. **Clone the repository and navigate to the project directory:**
    ```bash
@@ -93,7 +70,7 @@ Before you begin, ensure you have the following installed:
    ```
    Fix any issues reported by Flutter Doctor.
 
-## 🔥 Firebase Setup
+## Firebase Setup
 
 ### 1. Create a Firebase Project
 
@@ -169,7 +146,7 @@ In Firebase Console, enable the following:
    GMSServices.provideAPIKey("YOUR_IOS_API_KEY")
    ```
 
-## 🚀 Running the App
+## Running the App
 
 ### Run on Android Emulator
 
@@ -226,31 +203,5 @@ flutter build apk --release
 flutter build ios --release
 ```
 
-## ⚠️ Known Issues & Limitations
 
-### Critical Issues
 
-#### 1. **Driver Assignment**
-**Problem:** Driver assignment happens on the client side, making it vulnerable to app refreshes since Future.delay() is used in broadcasting order requests. A better approach would be to implement this server-side using Cloud Functions to ensure reliability and consistency.
-
-#### 2. **Simulation service**
-**Problem:** The driver simulation service is also client-side, meaning if the app is closed or refreshed, the simulation stops. A better approach would be to implement this server-side using Cloud Functions.
-
-#### 3. **No Push Notifications Implementation**
-**Problem:** While Firebase Messaging is configured in dependencies, push notifications are not implemented yet.
-
-## 🔮 Future Improvements
-
-1. **Implement Cloud Functions for driver assignment** (fixes race condition)
-2. **Add push notifications** for real-time updates
-3. **Improve background location tracking** for drivers
-4. **Implement proper error handling** and retry logic
-
-## 📄 License
-
-This project is created for educational purposes as part of the Mobile Application Development course.
-
-## 👨‍💻 Author
-
-Prince Ampofo
-- GitHub: [@princeampofo](https://github.com/princeampofo)
