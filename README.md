@@ -2,7 +2,7 @@
 
 A comprehensive food delivery application built with Flutter and Firebase, featuring real-time order tracking, driver assignment, and multi-role user management.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Features](#features)
